@@ -5,7 +5,7 @@ Keep a webcam bubble in a corner if you can; judges respond to faces.
 
 **Before you record**
 - Open `docs/Chaya_Presentation.pdf` full-screen.
-- In a second window, open the live Railway URL (or run `uvicorn api.server:app` and go to http://127.0.0.1:8000). Open a private window so the first-visit welcome slip appears.
+- In a second window, open https://chaya-tau.vercel.app (or run `uvicorn api.server:app` locally and go to http://127.0.0.1:8000). Open a private window so the first-visit welcome slip appears.
 - Open a terminal in the repo root and run `python scripts/generate_data.py 150` once beforehand, so the commands are warm.
 - Recording setup: 1080p, mic close to your mouth, notifications off.
 
@@ -53,7 +53,7 @@ Walk left to right on the diagram: two data streams → ingest → twin core (pr
 ## 15:30 – 20:30 · Live demo (slides 12–13, then the app)
 Follow this run-sheet:
 1. **Home page.** Read the headline. On the forecast slip, click *Chicken biryani* and *Rest*: the stamp turns to SPIKE LIKELY. Click *Ragi mudde* and *Walk 20 min*: IN RANGE. *"That is the product in one card."*
-2. **Open the simulated clinic.** Point at the purple strip: every patient is synthetic. Point at the pill top right: *Live · PostgreSQL*, so this is the real backend and database on Railway.
+2. **Open the simulated clinic.** Point at the purple strip: every patient is synthetic. Point at the pill top right: *Live · Supabase*: the clinic is served by the API on Vercel from a Supabase Postgres database.
 3. **Welcome slip → Walk through Sanjay's case.** Let the guided walkthrough drive. Read each slip aloud:
    - 12:15, Sanjay about to eat lunch; his twin learned his insulin sensitivity is low.
    - Chicken biryani: peak **237 mg/dL**, about 2 hours above 180.
@@ -65,7 +65,7 @@ Follow this run-sheet:
 6. **Mark warning as reviewed** on an alert, and open **Guide → What's what** to show the glossary. Click an **i** button on a panel.
 7. **Rx pad on your own.** Set metformin to *Missed* and sleep to 5 h: the peak rises. *"This is a conversation a doctor can have with the patient, with numbers for this patient's body rather than generic advice."*
 8. **Switch day** to the festival day (Wed 16) and show the bigger swings.
-9. **API (30 s):** open `/docs` on the same URL, or run `curl "<URL>/api/pipeline/GT-1102/risk?at=2026-09-20T12:45"`. It reads the raw FHIR bundle and wearables, calibrates the twin and returns the risk with reasons.
+9. **Backend (30 s):** open `https://chaya-tau.vercel.app/api/health` (database status) and, if running locally, `http://127.0.0.1:8000/docs` and `/api/pipeline/GT-1102/risk?at=2026-09-20T12:45`. The pipeline endpoint reads the raw FHIR bundle and wearables, calibrates the twin and returns the risk with reasons.
 
 ## 20:30 – 22:30 · Safety, impact, roadmap (slides 14–16)
 - Safety: decision support only, a clinician in the loop, alerts merged into episodes to limit fatigue (about 4 per patient-day at this threshold, tunable), and no real data.
