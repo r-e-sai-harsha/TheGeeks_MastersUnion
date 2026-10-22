@@ -279,7 +279,6 @@ const Clinic = {
       $("#review-wrap").addEventListener("click", e => { if (e.target.closest("#review-btn")) this.review(); });
       let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (S.pid && !views.clinic.hidden) { this.renderTrace(); this.renderRx(); } }, 120); });
       const rerender = () => { if (S.pid) this.renderTime(); };
-      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
       new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     }
     await this.renderRegister();

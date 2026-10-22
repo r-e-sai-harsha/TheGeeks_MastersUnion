@@ -52,18 +52,8 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --paper: #10162b; --paper-rule: #1d2645; --sheet: #161e38; --sheet-2: #1c2545; --edge: #28325a;
-  --ink: #e6e9f6; --ink-2: #b6bcda; --ink-3: #959cc0; --letterhead: #0b1024; --on-letterhead: #eef0fa; --on-letterhead-2: #a3aad0;
-  --shadow: #ad94ff; --shadow-soft: #2c2452; --stamp: #b9a5ff; --alert: #ff7d6b; --alert-soft: #43201d; --watch: #f0b252;
-  --watch-soft: #3c2d14; --ok: #74cf98; --ok-soft: #18332a; --band: #18302a; --replay: #59618a; --chit: #3b3518; --strip: #3d2c7a; --focus: #8eaaff;
-  color-scheme: dark; } }
-:root[data-theme="dark"] {
-  --paper: #10162b; --paper-rule: #1d2645; --sheet: #161e38; --sheet-2: #1c2545; --edge: #28325a;
-  --ink: #e6e9f6; --ink-2: #b6bcda; --ink-3: #959cc0; --letterhead: #0b1024; --on-letterhead: #eef0fa; --on-letterhead-2: #a3aad0;
-  --shadow: #ad94ff; --shadow-soft: #2c2452; --stamp: #b9a5ff; --alert: #ff7d6b; --alert-soft: #43201d; --watch: #f0b252;
-  --watch-soft: #3c2d14; --ok: #74cf98; --ok-soft: #18332a; --band: #18302a; --replay: #59618a; --chit: #3b3518; --strip: #3d2c7a; --focus: #8eaaff;
-  color-scheme: dark; }
+/* Light only: the Rx-pad world is paper. */
+html { color-scheme: light; }
 
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
