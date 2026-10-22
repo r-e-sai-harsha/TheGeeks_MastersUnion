@@ -9,7 +9,7 @@ Chaya builds a small, personal physiological model ("twin") for each person with
 | | |
 |---|---|
 | 📹 **Demo video (22 min)** | `<<PASTE UNLISTED YOUTUBE LINK>>` |
-| 🌐 **Live app** | `<<RAILWAY URL>>` · home page, simulated clinic, product tour and guided case walkthrough |
+| 🌐 **Live app** | https://chaya-tau.vercel.app · home page, simulated clinic, product tour and guided case walkthrough |
 | 🧭 **Architecture diagram** | [`docs/Chaya_Architecture.pdf`](docs/Chaya_Architecture.pdf) |
 | 📊 **Presentation** | [`docs/Chaya_Presentation.pdf`](docs/Chaya_Presentation.pdf) |
 | ⚖️ **License** | [MIT](LICENSE) |
