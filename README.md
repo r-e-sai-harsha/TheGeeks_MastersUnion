@@ -18,14 +18,15 @@ Chaya builds a small, personal physiological model ("twin") for each person with
 
 ## 1. Team
 
-| | |
-|---|---|
-| **Team name** | The Geeks |
-| **College / incubator** | Masters' Union, Gurugram |
-| **Team leader** | R E Sai Harsha Sadhu · PGP (MBA) · `harsha.sadhu2027@mastersunion.org` |
-| **Members** | `<<Name · programme · email>>` (add one row per member) |
+**Team name:** The Geeks · **College:** Masters' Union, Gurugram
 
-> Submission folder name: `The Geeks_Masters Union`
+| Member | Role | Programme | Email |
+|---|---|---|---|
+| R. E. Sai Harsha Sadhu | Team leader | PGP TBM, Masters' Union | harsha.sadhu2027@mastersunion.org |
+| Sanskriti Saraf | Member | PGP TBM, Masters' Union | sanskriti.saraf2027@mastersunion.org |
+| Muskan Sharma | Member | PGP TBM, Masters' Union | muskan.sharma2027@mastersunion.org |
+
+> Submission folder / repository: `TheGeeks_MastersUnion`
 
 ---
 
