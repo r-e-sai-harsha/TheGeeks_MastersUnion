@@ -1,0 +1,135 @@
+{
+ "classification": {
+  "Trend extrapolation (CGM only)": {
+   "auroc": 0.6445981296940119,
+   "auprc": 0.5052295035320736
+  },
+  "Twin physics only (no ML)": {
+   "auroc": 0.818992242122118,
+   "auprc": 0.7296106831057323
+  },
+  "EHR only (static)": {
+   "auroc": 0.8757299692321903,
+   "auprc": 0.7894613349268326,
+   "threshold": 0.27301463720650887,
+   "sensitivity": 0.7990550305725403,
+   "precision": 0.6322850230921486,
+   "specificity": 0.7875746410875365,
+   "event_detection": 0.9205298013245033,
+   "event_detection_60min": 0.8498896247240618,
+   "median_lead_min": 120.0,
+   "n_onsets": 906,
+   "alerts_per_patient_day": 3.8793650793650793
+  },
+  "Wearables only (dynamic)": {
+   "auroc": 0.9364952235989319,
+   "auprc": 0.8715606738736222,
+   "threshold": 0.4130619678646887,
+   "sensitivity": 0.8225403001667593,
+   "precision": 0.7712052117263843,
+   "specificity": 0.8884512768390294,
+   "event_detection": 0.9834437086092715,
+   "event_detection_60min": 0.8785871964679912,
+   "median_lead_min": 120.0,
+   "n_onsets": 906,
+   "alerts_per_patient_day": 4.3238095238095235
+  },
+  "Fusion: EHR + wearables": {
+   "auroc": 0.9339126453247047,
+   "auprc": 0.8685488294274364,
+   "threshold": 0.40953946829989135,
+   "sensitivity": 0.8278210116731517,
+   "precision": 0.7643058763151142,
+   "specificity": 0.8833058061237454,
+   "event_detection": 0.9790286975717439,
+   "event_detection_60min": 0.869757174392936,
+   "median_lead_min": 120.0,
+   "n_onsets": 906,
+   "alerts_per_patient_day": 4.266666666666667
+  },
+  "Chaya: fusion + digital twin": {
+   "auroc": 0.9419521542092478,
+   "auprc": 0.8802744432910619,
+   "threshold": 0.4558857768461316,
+   "sensitivity": 0.8255975541967759,
+   "precision": 0.7920277296360485,
+   "specificity": 0.9009020454834201,
+   "event_detection": 0.9823399558498896,
+   "event_detection_60min": 0.8719646799116998,
+   "median_lead_min": 120.0,
+   "n_onsets": 906,
+   "alerts_per_patient_day": 4.165079365079365
+  }
+ },
+ "regression": {
+  "Persistence (last CGM)": {
+   "rmse": 53.218221055175135,
+   "mae": 37.66625819517386,
+   "mard_pct": 23.387129621499124,
+   "clarke_A_pct": 54.74204510349089,
+   "clarke_AB_pct": 94.06171695328321
+  },
+  "Twin physics only": {
+   "rmse": 30.420725729294144,
+   "mae": 19.171987939817953,
+   "mard_pct": 11.389341264337427,
+   "clarke_A_pct": 81.74921909861669,
+   "clarke_AB_pct": 98.08807881097039
+  },
+  "ML fusion, no twin": {
+   "rmse": 25.722942611544003,
+   "mae": 17.0064141109391,
+   "mard_pct": 10.743263058944862,
+   "clarke_A_pct": 85.73439055366767,
+   "clarke_AB_pct": 99.21738234991247
+  },
+  "Chaya hybrid": {
+   "rmse": 24.301854231327855,
+   "mae": 15.388974567258396,
+   "mard_pct": 9.530891108696778,
+   "clarke_A_pct": 87.98956509799883,
+   "clarke_AB_pct": 99.33065595716198
+  }
+ },
+ "learning_curve_auroc": {
+  "5": {
+   "Chaya: fusion + digital twin": 0.8933876893026794,
+   "Fusion: EHR + wearables": 0.8726000527027126
+  },
+  "10": {
+   "Chaya: fusion + digital twin": 0.915226158031348,
+   "Fusion: EHR + wearables": 0.8995793723024081
+  },
+  "20": {
+   "Chaya: fusion + digital twin": 0.9295580595778411,
+   "Fusion: EHR + wearables": 0.9225118642897149
+  },
+  "40": {
+   "Chaya: fusion + digital twin": 0.9348468808235785,
+   "Fusion: EHR + wearables": 0.9234865955189465
+  },
+  "70": {
+   "Chaya: fusion + digital twin": 0.9396950071807093,
+   "Fusion: EHR + wearables": 0.9333956435563108
+  },
+  "105": {
+   "Chaya: fusion + digital twin": 0.9420533817648379,
+   "Fusion: EHR + wearables": 0.934807635688004
+  }
+ },
+ "twin_calibration": {
+  "Gb": {
+   "r_calibrated": 0.9911074071584006,
+   "r_ehr_prior": 0.768255103939526
+  },
+  "SI": {
+   "r_calibrated": 0.8437963734661695,
+   "r_ehr_prior": 0.7529190557596452
+  },
+  "gamma": {
+   "r_calibrated": 0.9051189007348953,
+   "r_ehr_prior": 0.8766929968565125
+  },
+  "median_fit_rmse_mgdl": 20.243731909717724
+ }
+}

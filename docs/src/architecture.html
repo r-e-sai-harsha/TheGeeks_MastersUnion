@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Chaya Architecture</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+@page{size:1600px 880px;margin:0}
+:root{--ink:#18225a;--muted:#4d5683;--line:#d5dfd0;--bg:#edf2e9;--twin:#6a44c9;--twin-soft:#e7e0f7;--spike:#bd3326;--amber:#b7791f;--amber-soft:#f6ecd8;--blue:#33507a;--blue-soft:#e3e9f3}
+*{box-sizing:border-box}
+body{margin:0;width:1600px;height:880px;background:var(--bg);font-family:"Archivo",sans-serif;color:var(--ink);padding:44px 52px;position:relative}
+h1{font-family:"Archivo",sans-serif;font-stretch:74%;font-weight:800;font-size:38px;margin:0}
+h1 b{color:var(--twin);font-weight:600}
+.sub{color:var(--muted);font-size:16px;margin-top:4px}
+.cols{display:grid;grid-template-columns:270px 40px 230px 40px 330px 40px 250px 40px 230px;margin-top:34px;align-items:stretch}
+.col{display:flex;flex-direction:column;gap:12px}
+.ch{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);height:20px}
+.box{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.box h3{margin:0 0 6px;font-size:16px;font-family:"Archivo",sans-serif;font-stretch:74%;font-weight:600}
+.box p,.box li{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+.box ul{margin:0;padding-left:16px}
+.static{border-top:4px solid var(--blue)} .dyn{border-top:4px solid var(--amber)}
+.twin{background:var(--twin-soft);border-color:#cbbcef}
+.twin h3{color:var(--twin)}
+.mono{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--ink)}
+.arrow{display:flex;align-items:center;justify-content:center}
+.arrow svg{width:40px;height:40px}
+.step{display:flex;gap:10px;align-items:flex-start}
+.step i{font-style:normal;font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--twin);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.loop{font-size:12.5px;color:var(--twin);font-family:"JetBrains Mono",monospace;text-align:center;border:1px dashed var(--twin);border-radius:8px;padding:8px}
+.bottom{position:absolute;left:52px;right:52px;bottom:40px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.bottom .box{background:transparent}
+.tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:11px;padding:1px 7px;border-radius:12px;background:#fff;border:1px solid var(--line);margin:3px 4px 0 0;color:var(--ink)}
+.out{border-top:4px solid var(--spike)}
+</style></head><body>
+<h1><span style="text-transform:uppercase;font-weight:800;font-stretch:72%">Chaya</span> <span style="font-family:Kalam;color:var(--twin);font-weight:400">छाया</span> · system architecture</h1>
+<div class="sub">Two data streams in, one calibrated virtual patient, 2-hour spike prediction and what-if simulation out</div>
+<div class="cols">
+  <div class="col">
+    <div class="ch">1 · Data streams</div>
+    <div class="box static"><h3>Static / historical: EHR</h3>
+      <p>FHIR R4 Bundle per patient</p>
+      <ul><li>Demographics, city, diet</li><li>Diagnoses (SNOMED): T2D, HTN, NAFLD</li><li>Labs (LOINC): HbA1c, FPG, lipids, eGFR</li><li>Medications: metformin, glimepiride, DPP-4i, SGLT2i, insulin</li><li>Genetics: TCF7L2 rs7903146</li></ul></div>
+    <div class="box dyn"><h3>Dynamic / real-time: wearables</h3>
+      <ul><li>CGM glucose, every 5 min</li><li>Steps, heart rate</li><li>Nightly HRV (RMSSD), sleep stages</li><li>Meal log (Indian dishes, carbs, GI)</li><li>Medication log</li></ul></div>
+    <div class="box"><h3>Synthetic cohort</h3><p>150 Indian patients × 14 days · 604,800 sensor rows · physiology-driven generator. No real patient data.</p></div>
+  </div>
+  <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28m-8-8 8 8-8 8" fill="none" stroke="#4d5683" stroke-width="2"/></svg></div>
+  <div class="col">
+    <div class="ch">2 · Ingest &amp; harmonise</div>
+    <div class="box"><h3>FHIR parser</h3><p>LOINC / SNOMED codes → patient profile vector</p></div>
+    <div class="box"><h3>Stream alignment</h3><p>5-min grid · sensor gaps kept as gaps · meal and dose events placed on the timeline</p></div>
+    <div class="box"><h3>Model inputs</h3><p>Minute-level carbs, GI-dependent absorption, steps, sleep-debt and missed-dose modifiers</p></div>
+  </div>
+  <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28m-8-8 8 8-8 8" fill="none" stroke="#4d5683" stroke-width="2"/></svg></div>
+  <div class="col">
+    <div class="ch">3 · Digital twin core</div>
+    <div class="box twin">
+      <h3>Per-patient physiological model</h3>
+      <p class="mono" style="margin-bottom:10px">gut → plasma glucose ⇄ insulin action<br>extended Bergman minimal model</p>
+      <div style="display:grid;gap:9px">
+        <div class="step"><i>1</i><p><b style="color:var(--ink)">EHR prior.</b> BMI, waist, HbA1c, duration, TCF7L2, drugs → starting physiology</p></div>
+        <div class="step"><i>2</i><p><b style="color:var(--ink)">Calibrate.</b> MAP fit to 7 days of CGM: insulin sensitivity, β-cell response, basal glucose, meal bioavailability, dawn effect</p></div>
+        <div class="step"><i>3</i><p><b style="color:var(--ink)">Observe.</b> Runs beside live CGM; corrects its state and detects unlogged meals</p></div>
+        <div class="step"><i>4</i><p><b style="color:var(--ink)">Habit model.</b> Learns when and how much this patient usually eats</p></div>
+        <div class="step"><i>5</i><p><b style="color:var(--ink)">Forecast &amp; what-if.</b> Simulates the next 2–4 h under routine or a doctor's scenario</p></div>
+      </div>
+    </div>
+    <div class="loop">↻ re-calibrates as new data arrives</div>
+  </div>
+  <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28m-8-8 8 8-8 8" fill="none" stroke="#4d5683" stroke-width="2"/></svg></div>
+  <div class="col">
+    <div class="ch">4 · Fusion &amp; prediction</div>
+    <div class="box"><h3>Fused feature vector</h3><p>every 15 min</p>
+      <span class="tag">18 EHR</span><span class="tag">25 wearable</span><span class="tag">11 twin</span></div>
+    <div class="box"><h3>Spike classifier</h3><p>LightGBM · P(glucose &gt; 180 mg/dL within 2 h)</p></div>
+    <div class="box"><h3>Glucose regressor</h3><p>LightGBM · glucose value at +2 h</p></div>
+    <div class="box"><h3>Explanations</h3><p>Tree SHAP grouped into clinical drivers: meal, routine, sleep, activity, medication, physiology</p></div>
+  </div>
+  <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28m-8-8 8 8-8 8" fill="none" stroke="#4d5683" stroke-width="2"/></svg></div>
+  <div class="col">
+    <div class="ch">5 · Delivery</div>
+    <div class="box out"><h3>FastAPI on Railway</h3><p class="mono">PostgreSQL · /patients<br>/simulate · /notes · /pipeline</p></div>
+    <div class="box out"><h3>Chaya web app</h3><ul><li>Home with live forecast slip</li><li>Register, case sheet, stamps</li><li>Reasons, twin physiology</li><li>Rx pad what-if + case notes</li><li>Product tour, case walkthrough</li></ul></div>
+    <div class="box"><h3>Patient nudge <span style="color:var(--muted);font-weight:400">(next)</span></h3><p>“Walk 15 min after lunch today”</p></div>
+  </div>
+</div>
+<div class="bottom">
+  <div class="box"><h3>Evaluation protocol</h3><p>Patient-level split 105 train / 45 held-out. Temporal split: days 1–7 calibrate, days 8–14 predict. Threshold chosen on training folds only.</p></div>
+  <div class="box"><h3>Privacy by design</h3><p>Synthetic data only (DPDP Act 2023 / HIPAA sandbox rules). FHIR-native so it can plug into ABDM-consented records later.</p></div>
+  <div class="box"><h3>Stack</h3><p>Python · NumPy/Numba · SciPy · LightGBM · FastAPI · SQLAlchemy · PostgreSQL on Railway · vanilla JS + D3</p></div>
+</div>
+</body></html>

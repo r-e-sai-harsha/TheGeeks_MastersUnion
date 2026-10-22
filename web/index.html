@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chaya · glucose forecasts two hours ahead</title>
+<meta name="description" content="Chaya builds a personal digital twin of each Type 2 Diabetes patient from their health record and wearables, forecasts glucose spikes two hours ahead, and shows which advice keeps them in range. Simulated demo with synthetic patients.">
+<meta name="theme-color" content="#141d49">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23141d49'/%3E%3Cpath d='M21 9.5a8 8 0 1 0 0 13' fill='none' stroke='%23f2f5ef' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M25 12.5a8 8 0 0 1 0 7' fill='none' stroke='%23ad94ff' stroke-width='2.5' stroke-linecap='round' stroke-dasharray='2 3'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/chaya.css">
+</head>
+<body>
+
+<header class="letterhead" id="letterhead">
+  <div class="bar gutter">
+    <a class="brand" href="#/" aria-label="Chaya home">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M21 9.5a8 8 0 1 0 0 13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M25.5 12.5a8.5 8.5 0 0 1 0 7" fill="none" stroke="#ad94ff" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="2 3"/></svg>
+      <span class="word">Chaya</span><span class="deva" lang="hi">छाया</span>
+      <span class="reg">Metabolic forecasts for Type 2 Diabetes</span>
+    </a>
+    <nav class="navlinks" aria-label="Sections" id="navlinks"></nav>
+    <span class="spacer"></span>
+    <span class="pill" id="conn" title="Where the clinic data comes from"><span class="dot"></span><span id="conn-t">Connecting…</span></span>
+    <div class="menu" id="help-menu">
+      <button class="btn btn-quiet btn-sm" id="help-btn" aria-haspopup="true" aria-expanded="false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17.5h.01"/></svg>
+        Guide
+      </button>
+      <div class="menu-pop" id="help-pop" role="menu" hidden>
+        <button role="menuitem" data-help="tour"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 5h16M4 12h10M4 19h7"/><circle cx="19" cy="17" r="3"/></svg><b>Product tour</b><small>One minute, nine stops: what each part of the clinic does.</small></button>
+        <button role="menuitem" data-help="case"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 4h10l3 3v13H4V4z"/><path d="M8 11h8M8 15h5"/></svg><b>Walk through a case</b><small>Sanjay's Sunday lunch: forecast, alert and advice, step by step.</small></button>
+        <button role="menuitem" data-help="glossary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg><b>What's what</b><small>Every term, stamp and number explained in plain words.</small></button>
+      </div>
+    </div>
+    <a class="btn btn-primary btn-sm" href="#/clinic" id="cta-top">Open the simulated clinic</a>
+  </div>
+  <div class="synthetic-strip gutter"><b>Simulated demo</b> · every patient is synthetic · decision support, not for clinical use</div>
+</header>
+
+<!-- ============================================================ HOME -->
+<main id="view-home" hidden>
+  <section class="hero gutter" aria-labelledby="h-hero">
+    <div class="wrap">
+      <div>
+        <h1 id="h-hero">See the spike <span class="ul">two hours</span> before it happens.</h1>
+        <p class="lede">Chaya builds a twin of each patient's metabolism from their health record and wearables. It forecasts glucose two hours ahead, explains every warning, and shows which advice keeps the patient in range.</p>
+        <div class="ctas">
+          <a class="btn btn-primary" href="#/clinic">Open the simulated clinic
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn btn-quiet" href="#/clinic?tour=1">Take the 1-minute tour</a>
+        </div>
+        <p class="fine"><span>45 synthetic patients</span><span>No sign-in</span><span>Built for the Happiest Health Digital Twin Challenge 2026</span></p>
+      </div>
+      <figure class="slip" id="slip" aria-labelledby="slip-cap" style="margin:0">
+        <div class="slip-head">
+          <div class="slip-title">Chaya forecast slip</div>
+          <div class="meta">Synthetic patient<br>Sun 20 Sep · 12:15</div>
+        </div>
+        <div class="fields">
+          <div class="field"><span class="k">Patient</span><span class="v">Sanjay</span></div>
+          <div class="field"><span class="k">Age</span><span class="v">53 M</span></div>
+          <div class="field"><span class="k">Dx</span><span class="v">T2D · 3.9 y</span></div>
+          <div class="field"><span class="k">Rx</span><span class="v">Metformin, glimepiride</span></div>
+        </div>
+        <div class="slip-chart">
+          <svg id="slip-svg" viewBox="0 0 560 220" role="img" aria-label="Forecast of Sanjay's glucose for the next four hours"></svg>
+          <div id="slip-stamp"></div>
+        </div>
+        <div class="rx">
+          <div class="glyph" aria-hidden="true">℞</div>
+          <div class="lines">
+            <div class="rx-line" role="group" aria-label="Lunch"><span class="lab">Lunch at 12:30</span><span id="slip-meals"></span></div>
+            <div class="rx-line" role="group" aria-label="After lunch"><span class="lab">After lunch</span><span id="slip-walk"></span></div>
+          </div>
+        </div>
+        <div class="outcome" id="slip-out" aria-live="polite"></div>
+        <figcaption id="slip-cap" class="sr">An interactive prescription slip. Choose a lunch and whether to walk; Chaya's twin redraws the forecast.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section gutter" id="how" aria-labelledby="h-how">
+    <div class="wrap">
+      <h2 id="h-how">One week to learn the body. Every 15 minutes after that, a forecast.</h2>
+      <p class="intro">Chaya reads the health record, watches seven days of wearable data to tune a physiological model to this patient, then runs that model two hours ahead of the real one.</p>
+      <div class="timeline" aria-hidden="true"><svg id="timeline-svg" viewBox="0 0 1180 190"></svg></div>
+      <ol class="steps">
+        <li><h3>Read the record</h3><p>HbA1c, fasting glucose, BMI, medicines and TCF7L2 genotype give a first estimate of how this body handles sugar.</p><span class="code">FHIR R4 · LOINC · SNOMED</span></li>
+        <li><h3>Learn the body</h3><p>Seven days of CGM, meals, steps, sleep and doses tune five personal parameters, including insulin sensitivity and how strongly the pancreas responds.</p><span class="code">Extended Bergman model · MAP calibration</span></li>
+        <li><h3>Forecast and advise</h3><p>The twin runs beside the live CGM, catches meals nobody logged, flags spikes two hours early with reasons, and tests advice before the doctor gives it.</p><span class="code">Twin + LightGBM · SHAP reasons</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section gutter" id="clinic-preview" aria-labelledby="h-preview">
+    <div class="wrap">
+      <h2 id="h-preview">One screen answers who, why and what to change.</h2>
+      <p class="intro">The clinic is laid out like a case file: the register on the left, the case sheet in the middle, the forecast and Rx pad on the right.</p>
+      <div class="shot"><img src="assets/img/clinic.png" alt="The Chaya clinic: patient register, Sanjay's case sheet with a day of glucose and a violet forecast, a SPIKE LIKELY stamp with its reasons, and the Rx pad" loading="lazy" width="1600" height="920"></div>
+      <div class="callouts">
+        <div><i>Register</i><b>Who needs attention</b><span>Patients ranked by how often Chaya warned about a spike this week.</span></div>
+        <div><i>Case sheet</i><b>What is happening</b><span>Glucose, meals, steps and sleep for the day, with the twin's forecast drawn ahead of now.</span></div>
+        <div><i>Stamp</i><b>Why it matters</b><span>Spike likely, watch or in range, with the three biggest reasons in plain words.</span></div>
+        <div><i>Rx pad</i><b>What to change</b><span>Write advice and the twin redraws the next four hours for this patient's body.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section gutter" id="evidence" aria-labelledby="h-evidence">
+    <div class="wrap">
+      <h2 id="h-evidence">Tested on 45 patients it had never seen.</h2>
+      <p class="intro">Trained on 105 synthetic patients, scored on 45 held back, using only days 8 to 14 after a week of learning. Numbers below come straight from <span class="num">reports/metrics.json</span>.</p>
+      <div class="report">
+        <div class="report-head"><b>Validation report</b><span>Synthetic cohort · 150 Indian adults · 14 days each</span></div>
+        <div class="table-scroll"><table>
+          <thead><tr><th scope="col">Test</th><th scope="col">Result</th><th scope="col">Comparison</th><th scope="col">Flag</th></tr></thead>
+          <tbody id="report-rows"></tbody>
+        </table></div>
+        <div class="report-foot">All patients are synthetic. The next step is validation on real, consented CGM data before any clinical use.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section gutter" id="india" aria-labelledby="h-india">
+    <div class="wrap">
+      <h2 id="h-india">Built for Indian bodies and Indian plates.</h2>
+      <div class="facts">
+        <div class="fact"><div class="big">101 M</div><p>Indians live with diabetes, and 136 million more with prediabetes.</p><div class="src">ICMR-INDIAB, Lancet Diabetes &amp; Endocrinology, 2023</div></div>
+        <div class="fact"><div class="big">62%</div><p>of calories in Indian diets come from carbohydrates, so the after-meal spike is the daily problem.</p><div class="src">ICMR-INDIAB, Nature Medicine, 2025</div></div>
+        <div class="fact"><div class="big">38</div><p>regional dishes in the meal library, from idli-sambar to ragi mudde, plus late dinners, chai and festival sweets.</p><div class="src">Chaya synthetic cohort</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section gutter" id="safety" aria-labelledby="h-safety">
+    <div class="wrap safety">
+      <div><h2 id="h-safety">Decision support, written in pencil.</h2><p class="intro">Chaya suggests where to look and what might help. The doctor decides.</p></div>
+      <ul>
+        <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg><div><b>Synthetic data only</b><span>No real patient appears anywhere, in line with the DPDP Act 2023 and the challenge's sandbox rules.</span></div></li>
+        <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><div><b>A clinician in the loop</b><span>No dosing. Every warning shows its reasons and the twin's projection.</span></div></li>
+        <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><div><b>Fewer, merged alerts</b><span>Back-to-back warnings become one episode, about four per patient a day, and the threshold is adjustable.</span></div></li>
+        <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 4h8l4 4v12H4V4z"/><path d="M9 13l2 2 4-4"/></svg><div><b>Ready for consented records</b><span>Health records are read as FHIR R4, so ABDM-consented data can replace the synthetic set later.</span></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="closer gutter" aria-labelledby="h-close">
+    <div class="wrap">
+      <h2 id="h-close">Open the clinic and change Sanjay's lunch.</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:12px">
+        <a class="btn btn-primary" href="#/clinic?case=1">Walk through the case</a>
+        <a class="btn btn-quiet" href="https://github.com/r-e-sai-harsha/GlucoTwin" target="_blank" rel="noopener">Read the code on GitHub</a>
+      </div>
+    </div>
+  </section>
+  <footer class="foot gutter"><div class="wrap"><span>Chaya · Digital Twin Challenge 2026 · Masters' Union</span><span>MIT licence · Not a medical device</span></div></footer>
+</main>
+
+<!-- ============================================================ CLINIC -->
+<main id="view-clinic" hidden>
+  <div class="clinic-bar gutter" id="clockbar">
+    <div class="wrap2">
+      <div class="clock-days" id="days" role="group" aria-label="Day of the replay week"></div>
+      <div class="clock-time">
+        <label for="tslider">Now</label>
+        <input id="tslider" type="range" min="0" max="95" step="1" aria-describedby="tout">
+        <output id="tout" for="tslider">12:15</output>
+        <button class="btn btn-quiet btn-sm" id="play" aria-pressed="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path id="play-ico" d="M7 4l13 8-13 8z"/></svg><span id="play-t">Replay</span></button>
+      </div>
+      <span class="hint">Replaying synthetic week · Mon 14 to Sun 20 Sep 2026</span>
+    </div>
+  </div>
+
+  <div class="clinic gutter">
+    <aside class="panel register" id="register" aria-labelledby="h-reg">
+      <div class="panel-h"><h2 id="h-reg">Register</h2><button class="info" data-term="register" aria-label="What is the register?">i</button><span class="aside" id="reg-count"></span></div>
+      <div class="tools">
+        <label class="sr" for="search">Search patients</label>
+        <input id="search" type="search" placeholder="Search name, city or ID" autocomplete="off">
+        <label class="sr" for="sort">Sort patients</label>
+        <select id="sort"><option value="alerts">Most spike alerts this week</option><option value="tir">Lowest time in range</option><option value="a1c">Highest HbA1c</option><option value="name">Name</option></select>
+      </div>
+      <div class="rlist" id="rlist" role="list"></div>
+    </aside>
+
+    <section class="case" id="case" aria-live="polite">
+      <div class="panel" id="sheet">
+        <div class="case-head" id="case-head"></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="panel-h" style="border-bottom:0;padding-bottom:0"><h3 id="trace-h">Day trace</h3><button class="info" data-term="trace" aria-label="How to read the day trace">i</button><span class="aside" id="trace-aside"></span></div>
+        <div class="trace" id="trace"><svg id="trace-svg" role="img" aria-labelledby="trace-h"></svg></div>
+        <div class="legend">
+          <span><i class="sw" style="border-color:var(--ink)"></i>Glucose so far</span>
+          <span><i class="sw" style="border-color:var(--shadow);border-top-style:dashed"></i>Chaya forecast, next 2 h</span>
+          <span><i class="sw" style="border-color:var(--replay)"></i>What happened next</span>
+          <span><i class="sw" style="border-top:8px solid var(--band);width:14px"></i>Target 70–180 mg/dL</span>
+          <span><svg width="10" height="10" aria-hidden="true"><path d="M5 1 9 9H1z" fill="var(--alert)"/></svg>Spike warning</span>
+          <span><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill="var(--watch)"/></svg>Logged meal</span>
+          <span><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="3.4" fill="none" stroke="var(--shadow)" stroke-width="1.6"/></svg>Meal Chaya noticed, not logged</span>
+        </div>
+        <div class="week" id="week" role="group" aria-label="Pick a day"></div>
+      </div>
+      <div class="panel">
+        <details class="fold" id="notes-fold" open>
+          <summary>Case notes <span class="aside" id="notes-count" style="font-weight:400;font-size:var(--t-xs);color:var(--ink-3)"></span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <div class="notes" id="notes"></div>
+        </details>
+      </div>
+      <div class="panel">
+        <details class="fold" id="record-fold">
+          <summary>Health record <span style="font-weight:400;font-size:var(--t-xs);color:var(--ink-3)">static data from the EHR</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <div class="record" id="record"></div>
+        </details>
+      </div>
+    </section>
+
+    <div class="rxcol" id="rxcol">
+      <section class="panel" id="risk" aria-labelledby="h-risk">
+        <div class="panel-h"><h3 id="h-risk">Next 2 hours</h3><button class="info" data-term="stamp" aria-label="What the stamps mean">i</button><span class="aside num" id="risk-at"></span></div>
+        <div class="risk-body">
+          <div class="risk-top"><div id="risk-stamp"></div><p class="risk-line" id="risk-line"></p></div>
+          <div class="pair">
+            <div><div class="l">Glucose in 2 h</div><div class="v" id="p2h"></div></div>
+            <div><div class="l">Forecast peak</div><div class="v" id="tpeak"></div></div>
+          </div>
+          <div id="why-wrap"><div class="why-h">Why Chaya says this <button class="info" data-term="reasons" aria-label="How reasons are chosen">i</button></div><ul class="why" id="why"></ul></div>
+          <div id="review-wrap"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="twin" aria-labelledby="h-twin">
+        <div class="panel-h"><h3 id="h-twin">Patient's twin</h3><button class="info" data-term="twin" aria-label="What the twin is">i</button><span class="aside" id="fit"></span></div>
+        <div class="twin-body" id="twin-body"></div>
+      </section>
+
+      <section class="panel rxpad" id="rxpad" aria-labelledby="h-rx">
+        <div class="panel-h"><h3 id="h-rx">Rx pad: try advice</h3><button class="info" data-term="rxpad" aria-label="How the Rx pad works">i</button></div>
+        <div class="body">
+          <p class="lead">Write advice for the next meal. The twin redraws the next four hours for this patient.</p>
+          <div class="quick" id="quick" aria-label="Quick advice"></div>
+          <div class="row2">
+            <label for="w-meal" style="grid-column:1/-1">Meal<select id="w-meal"></select></label>
+            <label for="w-when">Eaten in (minutes)<input id="w-when" type="number" min="0" max="120" step="5" value="15"></label>
+            <label for="w-sleep">Sleep last night (h)<input id="w-sleep" type="number" min="3" max="10" step="0.5" value="7"></label>
+          </div>
+          <div><div class="lab" id="walk-lab">Walk after the meal</div><div class="seg" id="w-walk" role="group" aria-labelledby="walk-lab"></div></div>
+          <div id="w-met-wrap"><div class="lab" id="met-lab">Metformin today</div><div class="seg" id="w-met" role="group" aria-labelledby="met-lab"></div></div>
+          <div class="rx-written" id="rx-written" aria-live="polite"></div>
+          <div id="rx-result" style="display:grid;gap:12px">
+            <div class="wi-chart"><svg id="wi-svg" role="img" aria-label="Four-hour forecast with and without the advice"></svg></div>
+            <div class="res" id="w-res"></div>
+            <button class="btn btn-primary" id="save-note">Save to case notes</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="glossary" aria-labelledby="h-gloss" aria-hidden="true">
+  <div class="drawer-h"><h2 id="h-gloss">What's what</h2><button class="icon-btn" id="gloss-close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="drawer-b"><dl id="gloss-list" style="margin:0"></dl></div>
+</aside>
+<div id="tour-root"></div>
+<div id="welcome-root"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="assets/vendor/d3.min.js"></script>
+<script src="assets/chaya.js"></script>
+</body>
+</html>

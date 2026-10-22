@@ -1,0 +1,280 @@
+{
+ "resourceType": "Bundle",
+ "type": "collection",
+ "entry": [
+  {
+   "resource": {
+    "resourceType": "Patient",
+    "id": "GT-1077",
+    "gender": "female",
+    "birthDate": "1995",
+    "address": [
+     {
+      "city": "Ahmedabad",
+      "country": "IN"
+     }
+    ],
+    "name": [
+     {
+      "given": [
+       "Nandini"
+      ],
+      "family": "(synthetic)"
+     }
+    ]
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Condition",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://snomed.info/sct",
+       "code": "44054006",
+       "display": "Type 2 diabetes mellitus"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Condition",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://snomed.info/sct",
+       "code": "38341003",
+       "display": "Hypertension"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Condition",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://snomed.info/sct",
+       "code": "370992007",
+       "display": "Dyslipidemia"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "MedicationStatement",
+    "status": "active",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "medicationCodeableConcept": {
+     "text": "Metformin 500 mg BD"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "4548-4",
+       "display": "Hemoglobin A1c"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 7.5,
+     "unit": "%"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "1558-6",
+       "display": "Fasting glucose"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 135,
+     "unit": "mg/dL"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "39156-5",
+       "display": "BMI"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 20.6,
+     "unit": "kg/m2"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "8280-0",
+       "display": "Waist circumference"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 74.8,
+     "unit": "cm"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "2571-8",
+       "display": "Triglycerides"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 198,
+     "unit": "mg/dL"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "2085-9",
+       "display": "HDL cholesterol"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 38,
+     "unit": "mg/dL"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "33914-3",
+       "display": "eGFR"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 113,
+     "unit": "mL/min/1.73m2"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "8480-6",
+       "display": "Systolic BP"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 155,
+     "unit": "mmHg"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1077"
+    },
+    "code": {
+     "text": "TCF7L2 rs7903146 genotype"
+    },
+    "valueString": "CT"
+   }
+  }
+ ]
+}

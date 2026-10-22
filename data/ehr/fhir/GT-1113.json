@@ -1,0 +1,246 @@
+{
+ "resourceType": "Bundle",
+ "type": "collection",
+ "entry": [
+  {
+   "resource": {
+    "resourceType": "Patient",
+    "id": "GT-1113",
+    "gender": "male",
+    "birthDate": "1986",
+    "address": [
+     {
+      "city": "Bhubaneswar",
+      "country": "IN"
+     }
+    ],
+    "name": [
+     {
+      "given": [
+       "Venkat"
+      ],
+      "family": "(synthetic)"
+     }
+    ]
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Condition",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://snomed.info/sct",
+       "code": "44054006",
+       "display": "Type 2 diabetes mellitus"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "MedicationStatement",
+    "status": "active",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "medicationCodeableConcept": {
+     "text": "Metformin 500 mg BD"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "4548-4",
+       "display": "Hemoglobin A1c"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 7.0,
+     "unit": "%"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "1558-6",
+       "display": "Fasting glucose"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 142,
+     "unit": "mg/dL"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "39156-5",
+       "display": "BMI"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 26.3,
+     "unit": "kg/m2"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "8280-0",
+       "display": "Waist circumference"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 87.6,
+     "unit": "cm"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "2571-8",
+       "display": "Triglycerides"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 76,
+     "unit": "mg/dL"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "2085-9",
+       "display": "HDL cholesterol"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 41,
+     "unit": "mg/dL"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "33914-3",
+       "display": "eGFR"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 100,
+     "unit": "mL/min/1.73m2"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "coding": [
+      {
+       "system": "http://loinc.org",
+       "code": "8480-6",
+       "display": "Systolic BP"
+      }
+     ]
+    },
+    "valueQuantity": {
+     "value": 131,
+     "unit": "mmHg"
+    }
+   }
+  },
+  {
+   "resource": {
+    "resourceType": "Observation",
+    "status": "final",
+    "subject": {
+     "reference": "Patient/GT-1113"
+    },
+    "code": {
+     "text": "TCF7L2 rs7903146 genotype"
+    },
+    "valueString": "CC"
+   }
+  }
+ ]
+}

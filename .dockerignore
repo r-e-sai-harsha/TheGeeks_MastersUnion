@@ -1,0 +1,7 @@
+.git
+.venv
+__pycache__
+models/_cache
+chaya.db
+docs/src/shots
+.impeccable
