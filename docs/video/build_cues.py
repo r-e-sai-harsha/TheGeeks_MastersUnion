@@ -65,7 +65,7 @@ C = [
  ("18_replay", "press replay", 0, {"a": "click", "s": "#play"}),
  ("18_replay", "@end", 10.5, {"a": "pause"}),
  ("19_review", "@start", -1.4, {"a": "hash", "v": "#/clinic/GT-1102"}),
- ("19_review", "@start", -0.6, {"a": "click", "s": "#days [data-d='6']"}),
+ ("19_review", "@start", -0.6, {"a": "click", "s": "#days [data-d='5']"}),
  ("19_review", "@start", 0.0, {"a": "pause"}),
  ("19_review", "@start", 0.2, {"a": "range", "s": "#tslider", "v": 51}),
  ("19_review", "marked as reviewed", -0.3, {"a": "click", "s": "#review-btn"}),
