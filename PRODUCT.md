@@ -38,7 +38,7 @@ A calibrated physiology model per patient, not only a black-box score: it can an
 ## Brand Commitments
 
 - Name: **Chaya** (Sanskrit/Hindi: shadow, shade). The twin is the patient's shadow that walks two hours ahead and offers shade from harm.
-- Repo: https://github.com/r-e-sai-harsha/GlucoTwin
+- Repo: https://github.com/r-e-sai-harsha/TheGeeks_MastersUnion
 - Voice: plain clinical English, specific numbers, no hype.
 
 ## Evidence on Hand
