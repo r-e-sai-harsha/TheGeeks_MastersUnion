@@ -214,6 +214,7 @@ Interactive API docs: `/docs`.
 ├── models/             trained classifier + regressor, calibrated twin parameters (full twin states are rebuilt by run_all.sh)
 ├── reports/            metrics.json, figures, test predictions
 ├── docs/               architecture PDF, presentation PDF, video script, model card
+│   └── video/          narration, subtitles and the scripts that recorded and edited the demo video
 ├── PRODUCT.md          product brief
 └── DESIGN.md           design system (tokens, components, rules)
 ```
