@@ -357,7 +357,6 @@ details.fold[open] > summary .chev { transform: rotate(180deg); }
 .tour-veil { position: fixed; inset: 0; z-index: 80; pointer-events: auto; }
 .tour-spot { position: fixed; z-index: 81; border-radius: 8px; box-shadow: 0 0 0 4px var(--shadow), 0 0 0 100vmax rgba(14, 20, 52, .58); transition: top .45s var(--ease), left .45s var(--ease), width .45s var(--ease), height .45s var(--ease); pointer-events: none; }
 .tour-card { position: fixed; z-index: 82; width: min(360px, calc(100vw - 32px)); background: var(--chit); color: var(--ink); border-radius: 4px; box-shadow: var(--lift-hi); padding: 18px 18px 14px; transition: top .45s var(--ease), left .45s var(--ease); }
-:root[data-theme="dark"] .tour-card, .tour-card { --c-ink: var(--ink); }
 .tour-card::before { content: ""; position: absolute; left: 0; right: 0; top: -7px; height: 8px; background: radial-gradient(circle at 6px 8px, transparent 4.5px, var(--chit) 5px) 0 0 / 12px 8px repeat-x; }
 .tour-card .k { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); display: flex; justify-content: space-between; }
 .tour-card h3 { font-family: var(--f-hand); font-weight: 700; font-size: 1.45rem; line-height: 1.15; margin-top: 6px; }
