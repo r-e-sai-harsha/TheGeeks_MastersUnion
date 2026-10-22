@@ -66,8 +66,11 @@ for i in range(1, len(clips)):
     tr = "fade" if items[i][3] == "@app" or items[i - 1][3] == "@app" else "fade"
     f.append(f"{last}[{i}:v]xfade=transition={tr}:duration={X}:offset={off:.3f}[v{i}]"); last = f"[v{i}]"
 f.append(f"{last}fade=t=in:st=0:d=0.8,fade=t=out:st={total-1.2:.3f}:d=1.2[vout]")
-subprocess.check_call(["ffmpeg", "-y", "-v", "error", *inp, "-filter_complex", ";".join(f), "-map", "[vout]",
-                       "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-r", str(FPS), "out/video.mp4"])
+if not os.path.exists("out/video.done"):
+    subprocess.check_call(["ffmpeg", "-y", "-v", "error", *inp, "-filter_complex", ";".join(f), "-map", "[vout]",
+                           "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-r", str(FPS), "out/video.mp4"])
+    open("out/video.done", "w").write("ok")
+if len(sys.argv) > 2 and sys.argv[2] == "video-only": sys.exit(0)
 
 # audio: place each VO at its absolute time
 place = []  # (file, start_seconds, id)
