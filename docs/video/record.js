@@ -57,7 +57,7 @@ const CURSOR = () => {
     const el = p.locator(sel).first();
     await el.evaluate(e => { const r = e.getBoundingClientRect(); if (r.top < 70 || r.bottom > innerHeight - 10) e.scrollIntoView({ block: "center", behavior: "smooth" }); }).catch(() => {});
     await p.waitForTimeout(450);
-    return el.boundingBox();
+    return el.boundingBox({ timeout: 2500 }).catch(() => null);
   };
   const glide = async (x, y, ms = 650) => {
     const steps = Math.max(8, Math.round(ms / 16));
@@ -103,6 +103,7 @@ const CURSOR = () => {
       await p.mouse.move(mx, my);
     },
     key: c => p.keyboard.press(c.v),
+    pause: async () => { if (/pause/i.test(await p.locator("#play").innerText())) { await click("#play"); } },
     css: c => p.addStyleTag({ content: c.v }),
     pretty: () => p.evaluate(() => { const pre = document.querySelector("pre"); if (pre) { try { pre.textContent = JSON.stringify(JSON.parse(pre.textContent), null, 2); } catch (e) {} } const pp = document.querySelector(".json-formatter-container, #pretty-print"); }),
   };
