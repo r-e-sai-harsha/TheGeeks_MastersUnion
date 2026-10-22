@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
       const { total } = await sb("patients?select=pid&limit=1", { count: true });
       return send(res, 200, { status: "ok", database: "Supabase PostgreSQL", patients: total, synthetic: true });
     }
-    if (parts[0] === "seed" && m === "POST") return send(res, 200, await seed());
+    if (parts[0] === "seed") return send(res, 200, await seed());   // idempotent: loads only into an empty database
     if (parts[0] === "meta") {
       const rows = await sb("meta?select=key,value");
       const out = Object.fromEntries(rows.map(r => [r.key, r.value]));
