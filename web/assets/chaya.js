@@ -89,7 +89,7 @@ const Data = {
       if (r.ok && (r.headers.get("content-type") || "").includes("json")) { const h = await r.json(); this.live = true; this.db = h.database; }
     } catch { this.live = false; }
     const pill = $("#conn"), t = $("#conn-t");
-    if (this.live) { pill.classList.add("live"); t.textContent = `Live · ${this.db}`; pill.title = `Clinic data is served by the Chaya API from ${this.db}. Notes you save are stored there.`; }
+    if (this.live) { pill.classList.add("live"); t.textContent = `Live · ${this.db.replace(" PostgreSQL", "")}`; pill.title = `Clinic data is served by the Chaya API from ${this.db}. Notes you save are stored there.`; }
     else { t.textContent = "Offline demo"; pill.title = "The API is not reachable here, so the clinic runs on the bundled synthetic data. Notes are kept in this browser."; }
   },
   async demoData() { if (!this.demo) this.demo = await (await fetch("data/demo.json")).json(); return this.demo; },
@@ -117,7 +117,8 @@ const Data = {
   },
   async addNote(pid, body, projection) {
     if (this.live) {
-      const r = await fetch(`api/patients/${pid}/notes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(`api/patients/${pid}/notes`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body, projected_peak: projection.peak, projected_minutes_above: projection.above }) });
       if (!r.ok) throw new Error((await r.json()).detail || "Could not save");
       return r.json();
     }

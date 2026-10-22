@@ -123,9 +123,9 @@ Hidden ground truth (true meals, true physiology) sits in `data/_ground_truth/` 
 | ML | **LightGBM** (binary classifier + L1 regressor), Tree SHAP via `pred_contrib`, scikit-learn metrics |
 | Data | pandas, PyArrow/Parquet, FHIR R4 JSON |
 | Backend | **FastAPI** + Uvicorn, **SQLAlchemy 2** |
-| Database | **PostgreSQL on Railway** (SQLite automatically when `DATABASE_URL` is not set) |
+| Database | **Supabase Postgres** (live), PostgreSQL on Railway, or SQLite automatically when `DATABASE_URL` is not set |
 | Web app | Plain HTML/CSS/JS + **D3.js**, no build step. The twin simulator is re-implemented in JS and matches Python to 0.1 mg/dL |
-| Hosting | **Railway** (Dockerfile + `railway.json`), health check at `/api/health` |
+| Hosting | **Vercel** (web app + Node API function, `web/vercel.json`); Railway alternative (Dockerfile + `railway.json`) |
 | Docs | Matplotlib, Playwright (HTML → PDF) |
 
 ---
@@ -154,6 +154,14 @@ open http://127.0.0.1:8000
 ```
 
 Rebuild everything from scratch (data → twins → models → metrics → web data, about 5 minutes): `./run_all.sh`.
+
+### Deploy on Vercel + Supabase (live setup)
+
+The hosted app runs the web front end on **Vercel** and stores the clinic in **Supabase Postgres**:
+- `web/` is the Vercel project root. `web/api/index.js` is a Node serverless function that serves the same `/api/...` routes as `api/server.py`, reading and writing Supabase through its REST API with row-level security (read-only clinic data; clinicians can add and remove case notes and mark warnings reviewed).
+- Tables: `patients` (register), `cases` (each patient's replay week as JSONB: readings, meals, predictions, twin state), `case_notes`, `alert_reviews`, `meta`.
+- Environment variables on Vercel: `SUPABASE_URL`, `SUPABASE_KEY` (publishable key).
+- The twin simulation runs in the browser; the full Python pipeline (`/api/pipeline/...`) runs locally or on Railway.
 
 ### Deploy on Railway (PostgreSQL)
 
