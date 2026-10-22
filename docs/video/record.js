@@ -103,6 +103,8 @@ const CURSOR = () => {
       await p.mouse.move(mx, my);
     },
     key: c => p.keyboard.press(c.v),
+    css: c => p.addStyleTag({ content: c.v }),
+    pretty: () => p.evaluate(() => { const pre = document.querySelector("pre"); if (pre) { try { pre.textContent = JSON.stringify(JSON.parse(pre.textContent), null, 2); } catch (e) {} } const pp = document.querySelector(".json-formatter-container, #pretty-print"); }),
   };
   for (const cue of cues) {
     await wait(cue.t);
