@@ -30,6 +30,7 @@
       <div class="menu-pop" id="help-pop" role="menu" hidden>
         <button role="menuitem" data-help="tour"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 5h16M4 12h10M4 19h7"/><circle cx="19" cy="17" r="3"/></svg><b>Product tour</b><small>One minute, nine stops: what each part of the clinic does.</small></button>
         <button role="menuitem" data-help="case"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 4h10l3 3v13H4V4z"/><path d="M8 11h8M8 15h5"/></svg><b>Walk through a case</b><small>Sanjay's Sunday lunch: forecast, alert and advice, step by step.</small></button>
+        <button role="menuitem" data-help="sources"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg><b>Where the data comes from</b><small>Every parameter Chaya monitors, its device or record, standard code and cadence.</small></button>
         <button role="menuitem" data-help="glossary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg><b>What's what</b><small>Every term, stamp and number explained in plain words.</small></button>
       </div>
     </div>
@@ -90,6 +91,18 @@
         <li><h3>Learn the body</h3><p>Seven days of CGM, meals, steps, sleep and doses tune five personal parameters, including insulin sensitivity and how strongly the pancreas responds.</p><span class="code">Extended Bergman model · MAP calibration</span></li>
         <li><h3>Forecast and advise</h3><p>The twin runs beside the live CGM, catches meals nobody logged, flags spikes two hours early with reasons, and tests advice before the doctor gives it.</p><span class="code">Twin + LightGBM · SHAP reasons</span></li>
       </ol>
+    </div>
+  </section>
+
+  <section class="section gutter" id="sources" aria-labelledby="h-sources">
+    <div class="wrap">
+      <h2 id="h-sources">Every number has a source you can name.</h2>
+      <p class="intro">Chaya monitors 23 parameters from four places. Each one carries its device or record, its standard code and how often it arrives. In this prototype every value is synthetic; the right-hand column says where it would come from in a clinic.</p>
+      <div class="streams" id="home-streams"></div>
+      <div style="margin-top:var(--sp-5);display:flex;flex-wrap:wrap;gap:12px">
+        <a class="btn btn-primary" href="#/data">See all 23 parameters</a>
+        <a class="btn btn-quiet" href="#/patient/GT-1102">See what the patient sees</a>
+      </div>
     </div>
   </section>
 
@@ -189,7 +202,7 @@
       <div class="panel" id="sheet">
         <div class="case-head" id="case-head"></div>
         <div class="kpis" id="kpis"></div>
-        <div class="panel-h" style="border-bottom:0;padding-bottom:0"><h3 id="trace-h">Day trace</h3><button class="info" data-term="trace" aria-label="How to read the day trace">i</button><span class="aside" id="trace-aside"></span></div>
+        <div class="panel-h" style="border-bottom:0;padding-bottom:0"><h3 id="trace-h">Day trace</h3><button class="info" data-term="trace" aria-label="How to read the day trace">i</button><button class="src" data-src="cgm,meals,steps,sleep,unlogged" aria-label="Where the day trace data comes from">Sources</button><span class="aside" id="trace-aside"></span></div>
         <div class="trace" id="trace"><svg id="trace-svg" role="img" aria-labelledby="trace-h"></svg></div>
         <div class="legend">
           <span><i class="sw" style="border-color:var(--ink)"></i>Glucose so far</span>
@@ -204,13 +217,13 @@
       </div>
       <div class="panel">
         <details class="fold" id="notes-fold" open>
-          <summary>Case notes <span class="aside" id="notes-count" style="font-weight:400;font-size:var(--t-xs);color:var(--ink-3)"></span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <summary>Case notes <span style="font-weight:400;font-size:var(--t-xs);color:var(--ink-3)">sent to the patient's app</span> <span class="aside" id="notes-count" style="font-weight:400;font-size:var(--t-xs);color:var(--ink-3)"></span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
           <div class="notes" id="notes"></div>
         </details>
       </div>
       <div class="panel">
         <details class="fold" id="record-fold">
-          <summary>Health record <span style="font-weight:400;font-size:var(--t-xs);color:var(--ink-3)">static data from the EHR</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <summary>Health record <span style="font-weight:400;font-size:var(--t-xs);color:var(--ink-3)">static data from the EHR · FHIR R4, each field with its code</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
           <div class="record" id="record"></div>
         </details>
       </div>
@@ -218,7 +231,7 @@
 
     <div class="rxcol" id="rxcol">
       <section class="panel" id="risk" aria-labelledby="h-risk">
-        <div class="panel-h"><h3 id="h-risk">Next 2 hours</h3><button class="info" data-term="stamp" aria-label="What the stamps mean">i</button><span class="aside num" id="risk-at"></span></div>
+        <div class="panel-h"><h3 id="h-risk">Next 2 hours</h3><button class="info" data-term="stamp" aria-label="What the stamps mean">i</button><button class="src" data-src="risk,forecast,reasons" aria-label="Where the forecast comes from">Sources</button><span class="aside num" id="risk-at"></span></div>
         <div class="risk-body">
           <div class="risk-top"><div id="risk-stamp"></div><p class="risk-line" id="risk-line"></p></div>
           <div class="pair">
@@ -231,12 +244,12 @@
       </section>
 
       <section class="panel" id="twin" aria-labelledby="h-twin">
-        <div class="panel-h"><h3 id="h-twin">Patient's twin</h3><button class="info" data-term="twin" aria-label="What the twin is">i</button><span class="aside" id="fit"></span></div>
+        <div class="panel-h"><h3 id="h-twin">Patient's twin</h3><button class="info" data-term="twin" aria-label="What the twin is">i</button><button class="src" data-src="twin" aria-label="Where the twin comes from">Sources</button><span class="aside" id="fit"></span></div>
         <div class="twin-body" id="twin-body"></div>
       </section>
 
       <section class="panel rxpad" id="rxpad" aria-labelledby="h-rx">
-        <div class="panel-h"><h3 id="h-rx">Rx pad: try advice</h3><button class="info" data-term="rxpad" aria-label="How the Rx pad works">i</button></div>
+        <div class="panel-h"><h3 id="h-rx">Rx pad: try advice</h3><button class="info" data-term="rxpad" aria-label="How the Rx pad works">i</button><button class="src" data-src="meals,meds,sleep,notes" aria-label="Where the Rx pad inputs come from">Sources</button></div>
         <div class="body">
           <p class="lead">Write advice for the next meal. The twin redraws the next four hours for this patient.</p>
           <div class="quick" id="quick" aria-label="Quick advice"></div>
@@ -251,7 +264,7 @@
           <div id="rx-result" style="display:grid;gap:12px">
             <div class="wi-chart"><svg id="wi-svg" role="img" aria-label="Four-hour forecast with and without the advice"></svg></div>
             <div class="res" id="w-res"></div>
-            <button class="btn btn-primary" id="save-note">Save to case notes</button>
+            <button class="btn btn-primary" id="save-note">Save and send to patient</button>
           </div>
         </div>
       </section>
@@ -259,7 +272,53 @@
   </div>
 </main>
 
+<!-- ============================================================ PATIENT APP -->
+<main id="view-patient" hidden>
+  <div class="pstage gutter">
+    <aside class="pside" aria-labelledby="h-pside">
+      <div class="k">Patient view</div>
+      <h1 id="h-pside">What <span id="ps-name">Sanjay</span> sees on his phone.</h1>
+      <p>The patient's copy of the Rx pad: his own numbers, the advice his doctor saved, and the devices feeding Chaya. No risk scores, no twin parameters, no other patients.</p>
+      <div class="pside-ctl">
+        <label for="ps-pick">Patient</label>
+        <select id="ps-pick"></select>
+        <div class="pside-clock">
+          <div class="clock-days" id="ps-days" role="group" aria-label="Day of the replay week"></div>
+          <div class="clock-time"><label for="ps-slider">Now</label><input id="ps-slider" type="range" min="0" max="95" step="1"><output id="ps-tout" for="ps-slider">12:45</output></div>
+        </div>
+      </div>
+      <ul class="pside-list">
+        <li><b>Today</b> current glucose from the sensor, the next two hours as a violet shadow, steps, sleep and doses.</li>
+        <li><b>Advice</b> every note the doctor saves on the Rx pad arrives here in their handwriting, with what it should do.</li>
+        <li><b>Week</b> time in range, sleep and steps day by day.</li>
+        <li><b>My data</b> each connected device and record, and when it last sent data.</li>
+      </ul>
+      <a class="btn btn-quiet btn-sm" id="ps-back" href="#/clinic/GT-1102">← Back to the clinic</a>
+    </aside>
+    <div class="phone" id="phone">
+      <div class="phone-screen" id="pscreen" aria-live="polite"></div>
+      <nav class="ptabs" id="ptabs" aria-label="Patient app sections"></nav>
+    </div>
+  </div>
+</main>
+
+<!-- ============================================================ DATA SOURCES -->
+<main id="view-data" hidden>
+  <section class="section gutter" style="border-bottom:0;padding-bottom:var(--sp-5)">
+    <div class="wrap">
+      <h1 class="page-h">Where the data comes from</h1>
+      <p class="intro">Every parameter Chaya monitors, grouped by where it comes from. For each one: what Chaya uses it for, where this prototype gets it, where it would come from in a clinic, its standard code and how often it arrives.</p>
+      <div class="streams" id="data-streams" style="margin-top:var(--sp-5)"></div>
+    </div>
+  </section>
+  <section class="gutter" style="padding-bottom:var(--sp-8)"><div class="wrap" id="data-list"></div></section>
+</main>
+
 <div class="scrim" id="scrim"></div>
+<aside class="drawer drawer-wide" id="srcdrawer" aria-labelledby="h-srcd" aria-hidden="true">
+  <div class="drawer-h"><h2 id="h-srcd">Where the data comes from</h2><button class="icon-btn" id="srcd-close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="drawer-b" id="srcd-body"></div>
+</aside>
 <aside class="drawer" id="glossary" aria-labelledby="h-gloss" aria-hidden="true">
   <div class="drawer-h"><h2 id="h-gloss">What's what</h2><button class="icon-btn" id="gloss-close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="drawer-b"><dl id="gloss-list" style="margin:0"></dl></div>

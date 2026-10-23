@@ -137,7 +137,7 @@ const Data = {
 };
 
 // ================================================================== router
-const views = { home: $("#view-home"), clinic: $("#view-clinic") };
+const views = { home: $("#view-home"), clinic: $("#view-clinic"), patient: $("#view-patient"), data: $("#view-data") };
 let current = null;
 function parseHash() {
   const h = location.hash || "#/";
@@ -145,14 +145,17 @@ function parseHash() {
   const [path, q] = h.slice(2).split("?");
   const params = new URLSearchParams(q || "");
   const parts = path.split("/").filter(Boolean);
-  return { view: parts[0] === "clinic" ? "clinic" : "home", pid: parts[1], params };
+  return { view: ["clinic", "patient", "data"].includes(parts[0]) ? parts[0] : "home", pid: parts[1], params };
 }
 async function route() {
   const r = parseHash();
   Object.entries(views).forEach(([k, el]) => { el.hidden = k !== r.view; });
-  $("#cta-top").hidden = r.view === "clinic";
+  $("#cta-top").hidden = r.view !== "home";
   renderNav(r.view);
-  if (r.view === "home") {
+  Sources.close();
+  if (r.view === "data") { Sources.renderPage(r.params.get("p")); if (current !== "data") window.scrollTo(0, 0); }
+  else if (r.view === "patient") { Clinic.togglePlay(false); if (current !== "patient") window.scrollTo(0, 0); await Patient.init(r.pid); }
+  else if (r.view === "home") {
     if (current !== "home") { await Home.init(); window.scrollTo(0, 0); }
     if (r.anchor) { const t = document.getElementById(r.anchor); if (t) t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" }); }
   } else {
@@ -162,12 +165,14 @@ async function route() {
     else if (r.params.get("case")) { history.replaceState(null, "", "#/clinic"); Tour.start(CASE); }
     else Welcome.maybe();
   }
+  if (r.view !== "clinic") Welcome.hide();
   current = r.view;
 }
 function renderNav(view) {
+  const pid = Patient.pid || S.pid || "GT-1102";
   const links = view === "home"
-    ? [["#how", "How it works"], ["#evidence", "Evidence"], ["#india", "Built for India"], ["#safety", "Safety"]]
-    : [["#/", "Home"], ["#/clinic", "Clinic", true]];
+    ? [["#how", "How it works"], ["#sources", "Data sources"], ["#evidence", "Evidence"], ["#india", "Built for India"], ["#safety", "Safety"]]
+    : [["#/", "Home"], [`#/clinic/${S.pid || pid}`, "Clinic", view === "clinic"], [`#/patient/${pid}`, "Patient app", view === "patient"], ["#/data", "Data sources", view === "data"]];
   $("#navlinks").innerHTML = links.map(([h, t, cur]) => `<a href="${h}"${cur ? ' aria-current="page"' : ""}>${t}</a>`).join("");
 }
 window.addEventListener("hashchange", route);
@@ -284,6 +289,7 @@ const Clinic = {
     await this.renderRegister();
     const target = pid || S.pid || "GT-1102";
     if (target !== S.pid) await this.open(target);
+    else { await this.loadNotes(); this.renderTime(); }
   },
   P() { return Data.cases.get(S.pid); },
   kNow() { return S.day * 288 + S.slot * 3; },
@@ -337,7 +343,9 @@ const Clinic = {
     const rx = [["on_metformin", "Metformin"], ["on_sulfonylurea", "Glimepiride"], ["on_dpp4", "Teneligliptin"], ["on_sglt2", "Dapagliflozin"], ["on_basal_insulin", "Glargine"]].filter(r => e[r[0]]).map(r => r[1]);
     const dx = [P.condition === "T2D" ? `Type 2 diabetes · ${e.diabetes_years} y` : "Prediabetes", e.hypertension && "Hypertension", e.dyslipidemia && "Dyslipidaemia", e.nafld && "Fatty liver"].filter(Boolean);
     $("#case-head").innerHTML = `<div><div class="pid">${P.pid} · synthetic</div><h2>${esc(P.name)}</h2><div class="who">${P.age} · ${P.sex === "F" ? "Female" : "Male"} · ${esc(P.city)} · ${e.vegetarian ? "Vegetarian" : "Non-vegetarian"} · BMI ${e.bmi}</div></div>
-      <div class="tags">${dx.map(d => `<span class="tag">${d}</span>`).join("")}${rx.map(r => `<span class="tag rx">${r}</span>`).join("") || '<span class="tag">No glucose-lowering medicine</span>'}</div>`;
+      <div class="tags">${dx.map(d => `<span class="tag">${d}</span>`).join("")}${rx.map(r => `<span class="tag rx">${r}</span>`).join("") || '<span class="tag">No glucose-lowering medicine</span>'}</div>
+      <div class="head-acts"><a class="btn btn-quiet btn-sm" id="open-papp" href="#/patient/${P.pid}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>${esc(P.name)}'s app</a>
+        <button class="btn btn-quiet btn-sm" data-src="cgm,steps,hr,hrv,sleep,meals,meds,ehr" data-pid="${P.pid}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/></svg>Data sources</button></div>`;
     const k = P.kpi;
     const tile = (l, v, u, g, cls = "") => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small> ${u}</small></div><div class="g ${cls}">${g}</div></div>`;
     $("#kpis").innerHTML = tile("Time in range", k.tir.toFixed(0), "%", k.tir >= 70 ? "meets goal of 70%" : "below goal of 70%", k.tir >= 70 ? "good" : "bad") +
@@ -348,10 +356,13 @@ const Clinic = {
   },
   renderRecord(P) {
     const e = P.ehr;
-    const items = [["HbA1c", `${e.hba1c_pct}%`], ["Fasting glucose", `${e.fasting_glucose_mgdl} mg/dL`], ["BMI · waist", `${e.bmi} · ${e.waist_cm} cm`], ["Blood pressure", `${e.systolic_bp}/${e.diastolic_bp} mmHg`],
-      ["TG · HDL · LDL", `${e.triglycerides_mgdl} · ${e.hdl_mgdl} · ${e.ldl_mgdl}`], ["eGFR · ALT", `${e.egfr} · ${e.alt_u_l}`], ["TCF7L2 rs7903146", `${e.tcf7l2_rs7903146}${e.tcf7l2_rs7903146.includes("T") ? " (risk allele)" : ""}`],
-      ["Family history", e.family_history_t2d ? "Type 2 diabetes" : "None recorded"], ["Smoker", e.smoker ? "Yes" : "No"], ["Height · weight", `${e.height_cm} cm · ${e.weight_kg} kg`]];
-    $("#record").innerHTML = items.map(([a, b]) => `<div><div class="l">${a}</div><div class="v">${esc(b)}</div></div>`).join("");
+    const items = [["HbA1c", `${e.hba1c_pct}%`, "LOINC 4548-4", "hba1c"], ["Fasting glucose", `${e.fasting_glucose_mgdl} mg/dL`, "LOINC 1558-6", "fpg"],
+      ["BMI · waist", `${e.bmi} · ${e.waist_cm} cm`, "LOINC 39156-5 · 8280-0", "body"], ["Blood pressure", `${e.systolic_bp}/${e.diastolic_bp} mmHg`, "LOINC 8480-6 · 8462-4", "bp"],
+      ["TG · HDL · LDL", `${e.triglycerides_mgdl} · ${e.hdl_mgdl} · ${e.ldl_mgdl}`, "LOINC 2571-8 · 2085-9 · 13457-7", "lipids"], ["eGFR · ALT", `${e.egfr} · ${e.alt_u_l}`, "LOINC 33914-3 · 1742-6", "kidney"],
+      ["TCF7L2 rs7903146", `${e.tcf7l2_rs7903146}${e.tcf7l2_rs7903146.includes("T") ? " (risk allele)" : ""}`, "Genetic test report", "gene"],
+      ["Family history", e.family_history_t2d ? "Type 2 diabetes" : "None recorded", "FamilyMemberHistory", "history"], ["Smoker", e.smoker ? "Yes" : "No", "LOINC 72166-2", "history"],
+      ["Height · weight", `${e.height_cm} cm · ${e.weight_kg} kg`, "LOINC 8302-2 · 29463-7", "body"]];
+    $("#record").innerHTML = items.map(([a, b, c, id]) => `<div><div class="l">${a}</div><div class="v">${esc(b)}</div><button class="code" data-src="${id}" title="Where this comes from">${c}</button></div>`).join("");
   },
 
   // ---------------------------------------------------------------- clock
@@ -601,7 +612,7 @@ const Clinic = {
       return `<div class="note"><div><div class="when">${DAYS[d]} ${14 + d} Sep, ${t} · ${esc(n.author || "Demo clinician")}</div><div class="txt">℞ ${esc(n.summary)}</div></div>
         <div style="display:grid;justify-items:end;gap:4px"><span class="proj">peak <b class="${good ? "good" : ""}">${Math.round(n.projected_peak)}</b> (was ${Math.round(n.baseline_peak)})<br>${n.projected_minutes_above} min above 180</span>
         <button class="btn btn-quiet btn-sm" data-del="${n.id}" aria-label="Delete this note">Delete</button></div></div>`;
-    }).join("") : `<p class="empty">No advice saved for ${esc(P ? P.name : "this patient")} yet. Write it on the Rx pad and choose “Save to case notes”.</p>`;
+    }).join("") : `<p class="empty">No advice saved for ${esc(P ? P.name : "this patient")} yet. Write it on the Rx pad and choose “Save and send to patient”.</p>`;
   },
   async saveNote() {
     const P = this.P(), i = this.idx(P); if (i < 0 || !this.lastRun) return;
@@ -609,9 +620,9 @@ const Clinic = {
     const body = { k: P.pred.k[i], meal_name: meal ? meal.meal : null, carbs_g: meal ? meal.carbs : 0, gi: meal ? meal.gi : 65, eat_in_min: wi.when, walk_min: wi.walk,
       sleep_hours: wi.sleepTouched ? wi.sleep : null, metformin_taken: P.ehr.on_metformin && wi.metTouched ? !!wi.met : null, summary: this.adviceText(P), baseline_peak: Math.round(peakOf(r.cmp)) };
     const btn = $("#save-note"); btn.disabled = true; btn.textContent = "Saving…";
-    try { await Data.addNote(S.pid, body, { peak: Math.round(peakOf(r.scen)), above: above(r.scen) }); await this.loadNotes(); $("#notes-fold").open = true; toast(`Saved to ${P.name}'s case notes${Data.live ? "" : " in this browser"}`); }
+    try { await Data.addNote(S.pid, body, { peak: Math.round(peakOf(r.scen)), above: above(r.scen) }); await this.loadNotes(); $("#notes-fold").open = true; toast(`Saved to ${P.name}'s case notes and sent to his app${Data.live ? "" : " (kept in this browser)"}`); }
     catch (e) { toast(`Couldn't save the note. ${e.message || "Try again."}`); }
-    finally { btn.disabled = false; btn.textContent = "Save to case notes"; }
+    finally { btn.disabled = false; btn.textContent = "Save and send to patient"; }
   },
   async deleteNote(id) { try { await Data.deleteNote(S.pid, id); await this.loadNotes(); toast("Note deleted"); } catch { toast("Couldn't delete the note. Try again."); } },
 };
@@ -635,7 +646,9 @@ const TERMS = [
   ["tir", "Time in range", "Share of readings between 70 and 180 mg/dL this week. The usual goal is above 70%.", "Case sheet"],
   ["gmi", "GMI", "Glucose management indicator: an HbA1c-like number estimated from the week's average CGM reading.", "Case sheet"],
   ["cv", "Variability (CV)", "How much glucose swings, as a coefficient of variation. 36% or lower is considered stable.", "Case sheet"],
-  ["live", "Live or offline", "Live means the clinic is served by the Chaya API and its database (PostgreSQL on Railway). Offline demo means the API is not reachable here, so the same data runs from files bundled with the page.", "Top bar"],
+  ["papp", "Patient app", "What the patient sees on their phone: current glucose from their sensor with the next two hours as a violet shadow, the advice their doctor saved on the Rx pad, their week, and the devices sending data. No risk scores or twin parameters.", "Patient app"],
+  ["sources", "Data sources", "Every parameter is tagged with where it comes from: the wearables (CGM, smartwatch), the patient's own logs (meals, doses), the health record (FHIR, with LOINC and SNOMED codes), or Chaya's own calculations. Open Guide → Where the data comes from, or any Sources button.", "Everywhere"],
+  ["live", "Live or offline", "Live means the clinic is served by the Chaya API on Vercel and its PostgreSQL database on Supabase. Offline demo means the API is not reachable here, so the same data runs from files bundled with the page.", "Top bar"],
 ];
 const Glossary = {
   init() {
@@ -724,7 +737,7 @@ const TOUR = Object.assign([
   { sel: "#why-wrap", title: "Every warning has reasons", body: "The three biggest drivers behind the score, in plain words: a meal just logged, the twin's projected peak, low activity, short sleep, a missed dose." },
   { sel: "#twin", title: "The patient's twin", body: "Chaya tuned these numbers to Sanjay on his first seven days. The violet mark is the twin; the grey tick is what the health record alone suggested. The gap is why a personal twin matters." },
   { sel: "#rxpad", title: "Try advice before you give it", body: "Pick a meal, a walk, last night's sleep or a missed metformin dose. The twin redraws the next four hours for this body. Save the advice to the case notes.", block: "start" },
-  { sel: "#help-menu", title: "Help is always here", body: "Reopen this tour, walk through Sanjay's case step by step, or open <b>What's what</b> for every term. The small <b>i</b> buttons explain each panel." },
+  { sel: "#help-menu", title: "Help is always here", body: "Reopen this tour, walk through Sanjay's case, see <b>where the data comes from</b>, or open <b>What's what</b> for every term. The <b>i</b> buttons explain a panel; <b>Sources</b> buttons show where its numbers come from." },
 ], { label: "Product tour", doneLabel: "Start exploring" });
 
 const CASE = Object.assign([
@@ -742,6 +755,7 @@ const CASE = Object.assign([
     before: () => setCase("GT-1102", 6, 51, { meal: -1, walk: 20 }) },
   { sel: "#trace", title: "The forecast against reality", body: "Violet dashes are what Chaya expected; the grey line is what happened. Press Replay any time to watch the afternoon unfold." },
   { sel: "#save-note", title: "Put the advice on file", body: () => `Save it to his case notes. ${Data.live ? "It is stored in the database" : "In this offline demo it is kept in your browser"} with the twin's projection, so the next consult starts from it.` },
+  { sel: "#open-papp", title: "…and it reaches Sanjay's phone", body: "Saved advice appears in his patient app, in the doctor's handwriting, beside his own glucose, steps and sleep. Open the patient view to see it.", block: "center" },
 ], { label: "Case walkthrough", doneLabel: "Done" });
 
 // ================================================================== welcome slip
@@ -771,13 +785,308 @@ function setupHelp() {
   pop.addEventListener("keydown", e => { if (e.key === "Escape") { close(); btn.focus(); } });
   pop.addEventListener("click", e => {
     const b = e.target.closest("[data-help]"); if (!b) return; close();
-    ({ tour: () => Tour.start(TOUR), case: () => Tour.start(CASE), glossary: () => Glossary.open() })[b.dataset.help]();
+    ({ tour: () => Tour.start(TOUR), case: () => Tour.start(CASE), glossary: () => Glossary.open(), sources: () => Sources.open(views.clinic.hidden ? (views.patient.hidden ? null : Patient.pid) : S.pid) })[b.dataset.help]();
   });
 }
 
+// ================================================================== data sources
+/* Every parameter Chaya monitors: what it is used for, where this prototype gets it,
+   where it would come from in a clinic, its standard and its cadence. */
+const STREAMS = {
+  wear: { name: "Wearables", sub: "Dynamic stream", icon: "M8 3h8l1 4H7zM7 17h10l-1 4H8zM6 7h12v10H6zM10 12h4", note: "CGM sensor and smartwatch, read through the phone." },
+  log: { name: "Patient app logs", sub: "Dynamic stream", icon: "M7 4h10l3 3v13H4V4zM8 11h8M8 15h5", note: "What the patient taps in: meals and medicine doses." },
+  ehr: { name: "Health record", sub: "Static stream", icon: "M8 4h8l4 4v12H4V4zM9 13h6M12 10v6", note: "Labs, diagnoses and prescriptions as FHIR R4." },
+  calc: { name: "Computed by Chaya", sub: "From the two streams", icon: "M4 17l5-5 4 4 7-8M15 8h5v5", note: "The twin, forecasts, risk and reasons." },
+};
+const SRC = [
+  // wearables
+  { id: "cgm", s: "wear", name: "Glucose (CGM)", unit: "mg/dL", use: "The core signal: day trace, current glucose, time in range, and the twin's correction every 5 minutes.",
+    proto: "Simulated per patient by the physiology model, then passed through sensor physics: about 8 min interstitial lag, noise, drift and 2–7 dropouts a fortnight. File: data/wearables/stream_5min.parquet (cgm_mgdl).",
+    real: "A continuous glucose monitor worn on the arm (for example FreeStyle Libre or Dexcom), read through the maker's cloud API or the phone's health store (Apple HealthKit, Android Health Connect).",
+    std: "FHIR Observation · mg/dL", every: "Every 5 min" },
+  { id: "steps", s: "wear", name: "Steps", unit: "steps / 5 min", use: "Activity lane on the trace; walking speeds glucose uptake in the twin; the Activity reason.",
+    proto: "Simulated from each patient's daily step habit, short walks and post-dinner walks. stream_5min.parquet (steps).",
+    real: "Smartwatch, fitness band or the phone's pedometer, through HealthKit or Health Connect.", std: "FHIR Observation · LOINC 55423-8", every: "Every 5 min" },
+  { id: "hr", s: "wear", name: "Heart rate", unit: "bpm", use: "Model input: current and 60-minute average heart rate.",
+    proto: "Simulated from resting heart rate, activity and sleep. stream_5min.parquet (heart_rate).",
+    real: "Optical sensor on a smartwatch or band.", std: "FHIR Observation · LOINC 8867-4", every: "Every 5 min" },
+  { id: "hrv", s: "wear", name: "Heart-rate variability", unit: "ms (RMSSD)", use: "Recovery signal: overnight HRV against the patient's own baseline, a model input.",
+    proto: "Nightly RMSSD, simulated with the sleep model. data/wearables/sleep_nightly.csv (hrv_rmssd).",
+    real: "Overnight HRV from the smartwatch.", std: "FHIR Observation · RMSSD, ms", every: "Nightly" },
+  { id: "sleep", s: "wear", name: "Sleep", unit: "hours, stages", use: "Sleep lane on the trace; short sleep lowers insulin sensitivity in the twin; default for the Rx pad.",
+    proto: "Bedtime, hours and stages simulated per night. stream_5min.parquet (sleep_stage) and sleep_nightly.csv.",
+    real: "Sleep tracking on the smartwatch.", std: "FHIR Observation · LOINC 93832-4", every: "Nightly, staged every 5 min" },
+  // patient logs
+  { id: "meals", s: "log", name: "Meals", unit: "dish, carbs g, GI", use: "Meal markers; the twin's gut model; the Recent meal and Usual meal reasons; Rx pad choices.",
+    proto: "Drawn from a library of 38 Indian dishes with carbs and GI. Patients log only 45–98% of meals and under-estimate carbs. data/wearables/meal_log.csv.",
+    real: "Logged in the patient app by searching a dish or taking a photo; carbs from India's food composition tables (NIN, IFCT 2017), GI from published tables.", std: "FHIR NutritionIntake", every: "Each meal" },
+  { id: "unlogged", s: "calc", name: "Meals nobody logged", unit: "g carbs", use: "Violet rings on the trace; the Unlogged meal reason.",
+    proto: "The twin compares glucose with what was logged; a rise it cannot explain is estimated as a hidden meal.",
+    real: "Same method, on real sensor data.", std: "Derived", every: "Every 5 min" },
+  { id: "meds", s: "log", name: "Medicine doses", unit: "dose taken", use: "Missed metformin raises the twin's resting glucose; the Medication reason; Rx pad default.",
+    proto: "Prescribed doses, with misses simulated from each patient's adherence. data/wearables/medication_log.csv.",
+    real: "A tap in the patient app or a smart pill box reminder; the prescription itself comes from the record.", std: "FHIR MedicationAdministration", every: "Each dose" },
+  // EHR
+  { id: "ehr", s: "ehr", name: "Patient, diagnoses and prescriptions", unit: "", use: "Case header; diabetes type and medicines set the twin's starting point.",
+    proto: "One FHIR R4 bundle per patient: Patient, Condition (SNOMED CT: 44054006 Type 2 diabetes, 714628002 prediabetes, 38341003 hypertension, 370992007 dyslipidaemia, 197321007 fatty liver) and MedicationStatement. data/ehr/fhir/GT-xxxx.json.",
+    real: "The hospital or clinic record, shared with consent through ABDM against the patient's ABHA number.", std: "FHIR Patient · Condition · MedicationStatement", every: "Each visit" },
+  { id: "hba1c", s: "ehr", name: "HbA1c", unit: "%", use: "Twin's starting resting glucose; compared with GMI from the sensor.",
+    proto: "Generated from each patient's simulated average glucose (ADAG relation) plus lab noise. FHIR bundle.", real: "Lab report in the health record.", std: "LOINC 4548-4", every: "Every 3 months" },
+  { id: "fpg", s: "ehr", name: "Fasting glucose", unit: "mg/dL", use: "Twin's starting resting glucose.", proto: "Generated from the patient's physiology. FHIR bundle.", real: "Lab report.", std: "LOINC 1558-6", every: "Each visit" },
+  { id: "body", s: "ehr", name: "BMI, waist, height, weight", unit: "", use: "Twin's starting insulin sensitivity; South Asians develop resistance at lower BMI.",
+    proto: "BMI and waist in the FHIR bundle; height and weight in the registry table data/ehr/patients.csv.", real: "Clinic vitals in the record.", std: "LOINC 39156-5 · 8280-0 · 8302-2 · 29463-7", every: "Each visit" },
+  { id: "bp", s: "ehr", name: "Blood pressure", unit: "mmHg", use: "Model input; context for the doctor.", proto: "Systolic in the FHIR bundle, diastolic in the registry table.", real: "Clinic vitals or a home BP cuff.", std: "LOINC 8480-6 · 8462-4", every: "Each visit" },
+  { id: "lipids", s: "ehr", name: "Triglycerides, HDL, LDL", unit: "mg/dL", use: "Model inputs that track insulin resistance.", proto: "TG and HDL in the FHIR bundle, LDL in the registry table.", real: "Lipid panel in the record.", std: "LOINC 2571-8 · 2085-9 · 13457-7", every: "Yearly" },
+  { id: "kidney", s: "ehr", name: "eGFR and ALT", unit: "", use: "Kidney and liver context for the doctor; model inputs.", proto: "eGFR in the FHIR bundle, ALT in the registry table.", real: "Lab reports.", std: "LOINC 33914-3 · 1742-6", every: "Yearly" },
+  { id: "gene", s: "ehr", name: "TCF7L2 genotype", unit: "rs7903146", use: "Lowers the twin's starting insulin response for risk-allele carriers.", proto: "Simulated genotype in the FHIR bundle.", real: "Optional genetic test report; most patients will not have one.", std: "FHIR Observation (genotype)", every: "Once" },
+  { id: "history", s: "ehr", name: "Diabetes duration, family history, smoking, diet", unit: "", use: "Twin's starting insulin response weakens with years of diabetes; model inputs.", proto: "Registry table data/ehr/patients.csv.", real: "Intake form and history in the record.", std: "FamilyMemberHistory · LOINC 72166-2", every: "Once, then updated" },
+  // computed
+  { id: "twin", s: "calc", name: "Twin parameters", unit: "", use: "Patient's twin panel: insulin sensitivity, insulin response, resting glucose, meal absorption, dawn effect.",
+    proto: "Starts from the record, then tuned to days 1–7 of CGM, meals, steps, sleep and doses (extended Bergman model, MAP fit). src/chaya/twin.py.", real: "Same, retuned weekly.", std: "Derived", every: "After 7 days, then weekly" },
+  { id: "forecast", s: "calc", name: "2-hour glucose forecast", unit: "mg/dL", use: "The violet shadow on every chart; Glucose in 2 h; the patient's Today chart.",
+    proto: "The twin runs ahead from now on the patient's usual routine, combined with a LightGBM regressor. src/chaya/model.py.", real: "Same.", std: "Derived", every: "Every 15 min" },
+  { id: "risk", s: "calc", name: "Spike risk and stamp", unit: "probability", use: "Next 2 hours stamp, warnings, register counts.", proto: "LightGBM classifier on 54 fused features (18 record, 25 wearable, 11 twin). Back-to-back warnings merge into one episode.", real: "Same, with the threshold set by the clinic.", std: "Derived", every: "Every 15 min" },
+  { id: "reasons", s: "calc", name: "Reasons for a warning", unit: "", use: "Why Chaya says this.", proto: "SHAP values per feature, grouped into plain-language drivers. src/chaya/explain.py.", real: "Same.", std: "Derived", every: "With each warning" },
+  { id: "kpi", s: "calc", name: "Time in range, GMI, variability", unit: "", use: "Case sheet tiles and the patient's Week view.", proto: "From the CGM: share of readings 70–180 mg/dL; GMI = 3.31 + 0.02392 × mean glucose; CV = SD / mean.", real: "Same, per international CGM consensus targets.", std: "Derived", every: "Live" },
+  { id: "notes", s: "calc", name: "Doctor's advice and reviews", unit: "", use: "Case notes in the clinic; Advice in the patient app.", proto: "Written on the Rx pad and stored in the Supabase database (tables case_notes and alert_reviews) with the twin's projection.", real: "Same, inside the clinic's system, with the doctor's identity.", std: "FHIR CarePlan / Communication", every: "When the doctor saves" },
+];
+const SRC_BY = Object.fromEntries(SRC.map(x => [x.id, x]));
+
+const Sources = {
+  init() {
+    $("#srcd-close").addEventListener("click", () => this.close());
+    $("#scrim").addEventListener("click", () => this.close());
+    document.addEventListener("click", e => { const b = e.target.closest("[data-src]"); if (b) { e.preventDefault(); this.open(b.dataset.pid || this.ctxPid(), b.dataset.src.split(",")); } });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#srcdrawer").classList.contains("on")) this.close(); });
+    this.renderStreams("#home-streams");
+  },
+  ctxPid() { return !views.clinic.hidden ? S.pid : !views.patient.hidden ? Patient.pid : null; },
+  streamCards() {
+    return Object.entries(STREAMS).map(([k, st]) => {
+      const items = SRC.filter(x => x.s === k);
+      return `<div class="stream"><div class="st-h"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${st.icon}"/></svg><div><b>${st.name}</b><span>${st.sub}</span></div></div>
+        <p>${st.note}</p><ul>${items.map(x => `<li><a href="#/data?p=${x.id}">${x.name}</a></li>`).join("")}</ul></div>`;
+    }).join("");
+  },
+  renderStreams(sel) { const el = $(sel); if (el) el.innerHTML = this.streamCards(); },
+  row(x, open) {
+    return `<div class="srow${open ? " hl" : ""}" id="src-${x.id}">
+      <div class="sr-name"><b>${x.name}</b>${x.unit ? `<span>${x.unit}</span>` : ""}<span class="sr-std">${x.std}</span><span class="sr-every">${x.every}</span></div>
+      <div><div class="sr-l">Used for</div><p>${x.use}</p></div>
+      <div><div class="sr-l">In this prototype</div><p>${esc(x.proto)}</p></div>
+      <div><div class="sr-l">In a clinic</div><p>${esc(x.real)}</p></div></div>`;
+  },
+  renderPage(focus) {
+    this.renderStreams("#data-streams");
+    $("#data-list").innerHTML = Object.entries(STREAMS).map(([k, st]) => `<div class="sgroup"><h2>${st.name} <span>${st.sub}</span></h2>
+      <div class="shead" aria-hidden="true"><span>Parameter</span><span>Used for</span><span>In this prototype</span><span>In a clinic</span></div>
+      ${SRC.filter(x => x.s === k).map(x => this.row(x, x.id === focus)).join("")}</div>`).join("");
+    if (focus) setTimeout(() => { const t = $(`#src-${focus}`); if (t) t.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" }); }, 60);
+  },
+  /* Completeness of one patient's data over the replayed week, up to the clock. */
+  completeness(P) {
+    const kEnd = Math.min(S.day * 288 + S.slot * 3, P.cgm.length - 1);
+    const cg = P.cgm.slice(0, kEnd + 1), got = cg.filter(v => v != null).length;
+    let last = -1; for (let k = kEnd; k >= 0; k--) if (P.cgm[k] != null) { last = k; break; }
+    const meals = P.meals.filter(m => m.k <= kEnd).length;
+    let unl = 0, prevK = -99; Object.entries(P.twin.inferred).map(([k, g]) => [+k, g]).filter(([k, g]) => k <= kEnd && g >= 4).sort((a, b) => a[0] - b[0]).forEach(([k]) => { if (k - prevK > 12) unl++; prevK = k; });
+    const doses = P.meds.filter(m => m.k <= kEnd).length, nights = P.nights.filter(n => n.day >= 7 && n.day <= S.day + 7).length;
+    return { cov: got / Math.max(cg.length, 1) * 100, last, meals, unl, doses, nights, kEnd };
+  },
+  async open(pid, ids) {
+    this.prev = document.activeElement;
+    let head = "";
+    if (pid) {
+      try {
+        const P = await Data.getCase(pid), c = this.completeness(P);
+        const t = k => `${DAYS[Math.floor(k / 288)]} ${fmtT((k % 288) * 5)}`;
+        head = `<div class="dq"><div class="dq-h">${esc(P.name)}'s data this week, up to ${DAYS[S.day]} ${fmtT(S.slot * 15)}</div>
+          <div class="dq-grid"><div><b class="num">${c.cov.toFixed(0)}%</b><span>CGM coverage${c.last >= 0 ? ` · last ${t(c.last)}` : ""}</span></div>
+          <div><b class="num">${c.meals}</b><span>meals logged · ${c.unl} more noticed by the twin</span></div>
+          <div><b class="num">${c.doses}</b><span>doses logged</span></div>
+          <div><b class="num">${c.nights}</b><span>nights of sleep and HRV</span></div></div>
+          <p class="dq-f">All values are synthetic. Gaps in the CGM are simulated sensor dropouts.</p></div>`;
+      } catch { /* case not loaded; show the list only */ }
+    }
+    const pick = ids && ids.length ? ids.map(i => SRC_BY[i]).filter(Boolean) : SRC;
+    const rest = ids && ids.length ? SRC.filter(x => !ids.includes(x.id)) : [];
+    $("#srcd-body").innerHTML = head + pick.map(x => this.card(x)).join("") +
+      (rest.length ? `<details class="more"><summary>All other parameters (${rest.length})</summary>${rest.map(x => this.card(x)).join("")}</details>` : "") +
+      `<p class="dq-f" style="margin-top:16px"><a href="#/data">Open the full table</a> · the same list, grouped by stream.</p>`;
+    $("#srcdrawer").classList.add("on"); $("#srcdrawer").setAttribute("aria-hidden", "false"); $("#scrim").classList.add("on");
+    $("#srcd-body").scrollTop = 0; $("#srcd-close").focus();
+  },
+  card(x) {
+    return `<div class="scard"><div class="sc-h"><span class="sc-s">${STREAMS[x.s].name}</span><b>${x.name}</b><span class="sc-meta">${x.std} · ${x.every}</span></div>
+      <p>${x.use}</p><dl><dt>In this prototype</dt><dd>${esc(x.proto)}</dd><dt>In a clinic</dt><dd>${esc(x.real)}</dd></dl></div>`;
+  },
+  close() {
+    const d = $("#srcdrawer"); if (!d || !d.classList.contains("on")) return;
+    d.classList.remove("on"); d.setAttribute("aria-hidden", "true");
+    if (!$("#glossary").classList.contains("on")) $("#scrim").classList.remove("on");
+    if (this.prev && document.contains(this.prev)) this.prev.focus();
+  },
+};
+
+// ================================================================== patient app
+/* The twin's 2-hour forecast from prediction index i, on the patient's usual routine. */
+function twinForecast(P, i, H = 120) {
+  const k = P.pred.k[i], st = P.twin.states[i], sm = (k % 288) * 5 + 5, day = Math.floor(k / 288) + 7;
+  const r = carryMeals(P, k, routine(P.twin, sm, H, true));
+  return { k, start: st[0], fc: forecast(P.twin.params, st, sm, H, r.steps, r.meal, r.kab, P.twin.si_mult[day], P.twin.gb_shift[day], P.twin.su[i]) };
+}
+const Patient = {
+  pid: null, tab: "today", ready: false,
+  async init(pid) {
+    pid = pid || this.pid || S.pid || "GT-1102";
+    if (!this.ready) {
+      this.ready = true; this.meta = await Data.getMeta();
+      $("#ps-days").innerHTML = DAYS.map((d, i) => `<button data-d="${i}" aria-pressed="false">${d} ${14 + i}</button>`).join("");
+      $("#ps-days").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { S.day = +b.dataset.d; this.render(); } });
+      $("#ps-slider").addEventListener("input", e => { S.slot = +e.target.value; this.render(); });
+      $("#ps-pick").addEventListener("change", e => { location.hash = `#/patient/${e.target.value}`; });
+      $("#ptabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b) { this.tab = b.dataset.tab; this.render(); $("#pscreen").scrollTop = 0; if (matchMedia("(max-width: 720px)").matches) window.scrollTo(0, 0); } });
+      $("#pscreen").addEventListener("click", e => {
+        const a = e.target.closest("[data-ack]"); if (a) { const s = new Set(store.get(`ack.${this.pid}`, [])); s.add(a.dataset.ack); store.set(`ack.${this.pid}`, [...s]); this.render(); return; }
+        const g = e.target.closest("[data-go]"); if (g) { this.tab = g.dataset.go; this.render(); $("#pscreen").scrollTop = 0; }
+      });
+    }
+    const reg = await Data.getRegister();
+    $("#ps-pick").innerHTML = [...reg].sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.pid}"${c.pid === pid ? " selected" : ""}>${esc(c.name)} · ${c.pid}</option>`).join("");
+    if (pid !== this.pid) { this.pid = pid; this.tab = "today"; }
+    $("#pscreen").innerHTML = `<div class="loading">Opening the app…</div>`;
+    try { this.P = await Data.getCase(pid); } catch { $("#pscreen").innerHTML = `<div class="loading">We couldn't open ${esc(pid)}. Pick a patient above.</div>`; return; }
+    try { this.notes = await Data.notes(pid); } catch { this.notes = []; }
+    $("#ps-name").textContent = this.P.name;
+    $("#ps-back").href = `#/clinic/${pid}`;
+    renderNav("patient");
+    this.render();
+  },
+  kNow() { return S.day * 288 + S.slot * 3; },
+  idx(P) { const k = this.kNow(); let i = -1; for (let j = 0; j < P.pred.k.length; j++) { if (P.pred.k[j] <= k) i = j; else break; } return i; },
+  render() {
+    const P = this.P; if (!P) return;
+    $$("#ps-days button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.d === S.day));
+    $("#ps-slider").value = S.slot; $("#ps-tout").textContent = fmtT(S.slot * 15);
+    const k = this.kNow(), notes = (this.notes || []).filter(n => n.at_k <= k), ack = new Set(store.get(`ack.${this.pid}`, []));
+    const unseen = notes.filter(n => !ack.has(String(n.id))).length;
+    const tabs = [["today", "Today", "M3 12h4l3-8 4 16 3-8h4"], ["advice", "Advice", "M7 4h10l3 3v13H4V4zM8 11h8M8 15h5"], ["week", "Week", "M4 20V10M10 20V4M16 20v-7M22 20H2"], ["data", "My data", "M5 6c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"]];
+    $("#ptabs").innerHTML = tabs.map(([id, t, d]) => `<button data-tab="${id}" aria-current="${this.tab === id}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg><span>${t}</span>${id === "advice" && unseen ? `<i class="badge">${unseen}</i>` : ""}</button>`).join("");
+    const greet = S.slot < 48 ? "Good morning" : S.slot < 68 ? "Good afternoon" : "Good evening";
+    const top = `<header class="papp-h"><div><div class="papp-brand"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M21 9.5a8 8 0 1 0 0 13" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><path d="M25.5 12.5a8.5 8.5 0 0 1 0 7" fill="none" stroke="var(--shadow)" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2 3"/></svg>Chaya</div>
+      <h2>${greet}, ${esc(P.name)}</h2><div class="papp-when">${DAYS_LONG[S.day]} ${14 + S.day} Sep · ${fmtT(S.slot * 15)}</div></div><span class="papp-syn">Synthetic</span></header>`;
+    const body = { today: () => this.today(P, k, notes), advice: () => this.advice(P, notes, ack), week: () => this.week(P, k), data: () => this.data(P, k) }[this.tab]();
+    $("#pscreen").innerHTML = top + body;
+    const svg = $("#p-chart"); if (svg) this.chart(P, k, svg);
+  },
+  status(P, i, k) {
+    const thr = this.meta.threshold, cg = P.cgm[k], pr = i >= 0 ? P.pred.prob[i] : null;
+    if (cg != null && cg >= 180) return "high"; if (pr == null || cg == null) return "na";
+    return pr >= thr ? "alert" : pr >= thr * 0.6 ? "watch" : "ok";
+  },
+  today(P, k, notes) {
+    const d0 = S.day * 288, i = this.idx(P);
+    let last = -1; for (let j = k; j >= Math.max(0, k - 12); j--) if (P.cgm[j] != null) { last = j; break; }
+    const g = last >= 0 ? P.cgm[last] : null, prev = last >= 3 ? P.cgm[last - 3] : null;
+    const dv = g != null && prev != null ? g - prev : 0;
+    const arrow = dv > 15 ? ["↑", "rising fast"] : dv > 5 ? ["↗", "rising"] : dv < -15 ? ["↓", "falling fast"] : dv < -5 ? ["↘", "falling"] : ["→", "steady"];
+    const band = g == null ? ["na", "No reading"] : g < 70 ? ["low", "Below range"] : g > 180 ? ["high", "Above range"] : ["ok", "In range"];
+    const st = this.status(P, i, k);
+    const fc = i >= 0 && P.pred.k[i] >= d0 ? twinForecast(P, i) : null;
+    const pk = fc ? Math.round(peakOf(fc.fc)) : null, pkAt = fc ? fmtT(((fc.k % 288) * 5 + 5 + (fc.fc.indexOf(peakOf(fc.fc)) + 1) * 5) % 1440) : "";
+    const latest = notes[0];
+    let heads = "";
+    if (st === "alert" || st === "watch") heads = `<div class="pcard heads ${st}"><div class="ph-k">${st === "alert" ? "Heads-up for the next 2 hours" : "Worth a look"}</div>
+      <p>${st === "alert" ? `Your glucose may go above 180 ${pk ? `(about <b>${pk}</b> around ${pkAt})` : "soon"}. Your care team can see this too.` : "Your glucose may rise a little after your next meal."}</p>
+      ${latest ? `<button class="pnote-mini" data-go="advice"><span class="hand">℞ ${esc(latest.summary)}</span><span>Your doctor's latest advice →</span></button>` : `<p class="ph-f">A short walk after eating usually helps. Your doctor may send advice.</p>`}</div>`;
+    else if (st === "high") heads = `<div class="pcard heads alert"><div class="ph-k">Above range now</div><p>Your glucose is above 180. ${latest ? "Your doctor's latest advice is below." : "A short walk usually helps it come down."}</p>${latest ? `<button class="pnote-mini" data-go="advice"><span class="hand">℞ ${esc(latest.summary)}</span><span>Open your advice →</span></button>` : ""}</div>`;
+    else if (st === "ok") heads = `<div class="pcard heads ok"><div class="ph-k">Next 2 hours</div><p>Looking steady${pk ? `, peaking around <b>${pk}</b>` : ""}.</p></div>`;
+    const seg = P.cgm.slice(d0, k + 1).filter(v => v != null), tir = seg.length ? seg.filter(v => v >= 70 && v <= 180).length / seg.length * 100 : null;
+    const steps = P.steps.slice(d0, k + 1).reduce((a, b) => a + b, 0), night = P.nights.find(n => n.day === S.day + 7);
+    const meals = P.meals.filter(m => m.k >= d0 && m.k <= k).sort((a, b) => a.k - b.k), doses = P.meds.filter(m => m.k >= d0 && m.k <= k).sort((a, b) => a.k - b.k);
+    const ago = last >= 0 ? (k - last) * 5 : null;
+    return `<section class="pcard glu"><div class="glu-top"><div><div class="glu-v num">${g == null ? "–" : Math.round(g)}<small>mg/dL</small><span class="arr" title="${arrow[1]}">${arrow[0]}</span></div>
+        <div class="glu-s"><span class="pill2 ${band[0]}">${band[1]}</span><span>${arrow[1]} · ${ago == null ? "sensor gap" : ago ? `${ago} min ago` : "just now"}</span></div></div>
+        <button class="src-mini" data-src="cgm,forecast" aria-label="Where this number comes from">from your sensor</button></div>
+        <svg id="p-chart" role="img" aria-label="Glucose for the last 3 hours and Chaya's forecast for the next 2"></svg>
+        <div class="p-leg"><span><i style="background:var(--ink)"></i>Your glucose</span><span><i class="dash"></i>Chaya's forecast</span><span><i style="background:var(--band);height:8px"></i>Target 70–180</span></div></section>
+      ${heads}
+      <section class="ptiles">
+        <div class="pt"><span class="pt-l">In range today</span><b class="num">${tir == null ? "–" : tir.toFixed(0) + "%"}</b><span class="pt-g">goal 70% or more</span></div>
+        <div class="pt"><span class="pt-l">Steps today</span><b class="num">${steps.toLocaleString("en-IN")}</b><span class="pt-g">from your watch</span></div>
+        <div class="pt"><span class="pt-l">Sleep last night</span><b class="num">${night ? night.sleep_hours.toFixed(1) + " h" : "–"}</b><span class="pt-g">${night ? `bed ${fmtT(night.bedtime * 60)}` : "no data"}</span></div>
+        <div class="pt"><span class="pt-l">Medicines today</span><b class="num">${doses.length}</b><span class="pt-g">${doses.length ? "doses logged" : "none logged yet"}</span></div>
+      </section>
+      <section class="pcard plist"><div class="pl-h">Today so far</div>
+        ${[...meals.map(m => ({ k: m.k, t: m.meal, s: `${m.carbs} g carbs`, c: "meal" })), ...doses.map(m => ({ k: m.k, t: m.drug, s: "taken", c: "dose" }))].sort((a, b) => a.k - b.k)
+          .map(x => `<div class="pl-row"><span class="pl-t num">${fmtT((x.k % 288) * 5)}</span><span class="dot ${x.c}"></span><span class="pl-n">${esc(x.t)}</span><span class="pl-s">${x.s}</span></div>`).join("") || `<p class="pl-empty">Nothing logged yet today.</p>`}
+      </section>`;
+  },
+  chart(P, k, el) {
+    const W = el.clientWidth || 330, H = 150, M = { l: 26, r: 6, t: 8, b: 18 };
+    const svg = d3.select(el).attr("viewBox", `0 0 ${W} ${H}`).attr("height", H); svg.selectAll("*").remove();
+    const x = d3.scaleLinear([-36, 24], [M.l, W - M.r]), y = d3.scaleLinear([50, 300], [H - M.b, M.t]).clamp(true);
+    svg.append("rect").attr("x", M.l).attr("width", W - M.l - M.r).attr("y", y(180)).attr("height", y(70) - y(180)).attr("fill", css("--band")).attr("rx", 3);
+    [70, 180].forEach(v => svg.append("text").attr("x", M.l - 4).attr("y", y(v) + 3).attr("text-anchor", "end").text(v));
+    const past = d3.range(-36, 1).map(j => [j, P.cgm[k + j] ?? null]);
+    svg.append("path").attr("d", d3.line().defined(d => d[1] != null).x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX)(past)).attr("fill", "none").attr("stroke", css("--ink")).attr("stroke-width", 2.6).attr("stroke-linecap", "round");
+    const i = this.idx(P);
+    if (i >= 0 && k - P.pred.k[i] < 6) {
+      const f = twinForecast(P, i), off = f.k - k;
+      const pts = [[off, f.start], ...f.fc.map((v, j) => [off + j + 1, v])].filter(p => p[0] <= 24);
+      svg.append("path").attr("d", d3.area().x(d => x(d[0])).y0(d => y(d[1] - 18 - (d[0] - off) * .9)).y1(d => y(d[1] + 18 + (d[0] - off) * .9)).curve(d3.curveMonotoneX)(pts)).attr("fill", css("--shadow")).attr("opacity", .13);
+      svg.append("path").attr("d", d3.line().x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX)(pts)).attr("fill", "none").attr("stroke", css("--shadow")).attr("stroke-width", 2.4).attr("stroke-dasharray", "6 4");
+    }
+    svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", M.t).attr("y2", H - M.b).attr("stroke", css("--ink-3")).attr("stroke-width", 1);
+    [[-36, "-3 h"], [-12, "-1 h"], [0, "now"], [24, "+2 h"]].forEach(([t, l]) => svg.append("text").attr("x", x(t)).attr("y", H - 4).attr("text-anchor", t === -36 ? "start" : t === 24 ? "end" : "middle").text(l));
+  },
+  advice(P, notes, ack) {
+    if (!notes.length) return `<div class="pempty"><div class="hand" style="font-size:2.4rem;line-height:1">℞</div><b>No advice yet</b><p>When your doctor writes advice on the Rx pad, it appears here with what it should do for your glucose.</p></div>`;
+    return `<div class="pl-h" style="padding:0 4px">From your care team</div>` + notes.map(n => {
+      const d = Math.floor(n.at_k / 288), seen = ack.has(String(n.id)), better = n.projected_peak < n.baseline_peak - 2;
+      return `<article class="pnote${seen ? " seen" : ""}"><div class="pn-h"><span>Your care team${n.author && !/^You/.test(n.author) ? ` · ${esc(n.author)}` : ""}</span><span class="num">${DAYS[d]} ${14 + d} Sep, ${fmtT((n.at_k % 288) * 5)}</span></div>
+        <p class="hand pn-t">℞ ${esc(n.summary)}</p>
+        <div class="pn-e"><span>What it should do</span><b>peak about <span class="num ${better ? "good" : ""}">${Math.round(n.projected_peak)}</span> instead of <span class="num">${Math.round(n.baseline_peak)}</span> mg/dL</b><span>${n.projected_minutes_above ? `${n.projected_minutes_above} min above 180` : "staying under 180"}</span></div>
+        ${seen ? `<div class="pn-ok">✓ Seen</div>` : `<button class="btn btn-primary btn-sm" data-ack="${n.id}">Got it</button>`}</article>`;
+    }).join("") + `<p class="pfoot">Advice is written by your doctor and projected by your twin. Talk to your doctor before changing any medicine.</p>`;
+  },
+  week(P, k) {
+    const rows = DAYS.map((dn, d) => {
+      const hi = Math.min(k, d * 288 + 287), seg = d * 288 <= k ? P.cgm.slice(d * 288, hi + 1).filter(v => v != null) : [];
+      const tir = seg.length ? seg.filter(v => v >= 70 && v <= 180).length / seg.length * 100 : null;
+      const n = P.nights.find(x => x.day === d + 7), st = d * 288 <= k ? P.steps.slice(d * 288, hi + 1).reduce((a, b) => a + b, 0) : null;
+      return { dn: `${dn} ${14 + d}`, tir, sleep: d <= S.day && n ? n.sleep_hours : null, st, today: d === S.day };
+    });
+    const all = P.cgm.slice(0, k + 1).filter(v => v != null), mean = all.reduce((a, b) => a + b, 0) / Math.max(all.length, 1);
+    const tirW = all.filter(v => v >= 70 && v <= 180).length / Math.max(all.length, 1) * 100, gmi = 3.31 + 0.02392 * mean;
+    return `<section class="ptiles"><div class="pt"><span class="pt-l">In range this week</span><b class="num">${tirW.toFixed(0)}%</b><span class="pt-g">goal 70% or more</span></div>
+        <div class="pt"><span class="pt-l">Average glucose</span><b class="num">${Math.round(mean)}</b><span class="pt-g">mg/dL</span></div>
+        <div class="pt"><span class="pt-l">Estimated A1c (GMI)</span><b class="num">${gmi.toFixed(1)}%</b><span class="pt-g">last lab ${P.ehr.hba1c_pct.toFixed(1)}%</span></div>
+        <div class="pt"><span class="pt-l">Warnings this week</span><b class="num">${P.pred.start.filter((s, j) => s && P.pred.k[j] <= k).length}</b><span class="pt-g">also sent to your doctor</span></div></section>
+      <section class="pcard"><div class="pl-h">Time in range, day by day</div><div class="wbars">${rows.map(r => `<div class="wb${r.today ? " today" : ""}"><div class="wb-bar"><i style="height:${r.tir == null ? 0 : r.tir}%" class="${r.tir != null && r.tir < 70 ? "low" : ""}"></i></div><b class="num">${r.tir == null ? "–" : r.tir.toFixed(0)}</b><span>${r.dn.split(" ")[0]}</span></div>`).join("")}</div></section>
+      <section class="pcard plist"><div class="pl-h">Sleep and steps</div>${rows.map(r => `<div class="pl-row"><span class="pl-t">${r.dn}</span><span class="pl-n num">${r.sleep == null ? "–" : r.sleep.toFixed(1) + " h sleep"}</span><span class="pl-s num">${r.st == null ? "–" : r.st.toLocaleString("en-IN") + " steps"}</span></div>`).join("")}</section>`;
+  },
+  data(P, k) {
+    const c = Sources.completeness(P), t = kk => kk < 0 ? "—" : `${DAYS[Math.floor(kk / 288)]} ${fmtT((kk % 288) * 5)}`;
+    const lastOf = arr => arr.filter(m => m.k <= k).reduce((a, m) => Math.max(a, m.k), -1);
+    const e = P.ehr;
+    const devs = [
+      ["Glucose sensor (CGM)", "Reads every 5 minutes", `Last reading ${t(c.last)} · ${c.cov.toFixed(0)}% of the week covered`, "cgm", "M12 3a9 9 0 1 0 .01 0M12 8v4l3 2"],
+      ["Smartwatch", "Steps, heart rate, sleep and HRV", `Synced ${t(k)} · ${c.nights} nights recorded`, "steps,hr,hrv,sleep", "M8 3h8l1 4H7zM7 17h10l-1 4H8zM6 7h12v10H6z"],
+      ["Meal log", "What you tap in", `${c.meals} meals logged · last ${t(lastOf(P.meals))}`, "meals,unlogged", "M7 4h10l3 3v13H4V4zM8 11h8M8 15h5"],
+      ["Medicine log", "Doses you mark as taken", `${c.doses} doses · last ${t(lastOf(P.meds))}`, "meds", "M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7zM7 10l7 7"],
+      ["Health record", "Linked to your ABHA number", `HbA1c ${e.hba1c_pct}% · fasting ${e.fasting_glucose_mgdl} mg/dL · from your clinic`, "ehr,hba1c,fpg,body,bp,lipids,kidney", "M8 4h8l4 4v12H4V4zM9 13h6M12 10v6"],
+    ];
+    return `<p class="pintro">Chaya combines these sources into your twin. Tap one to see exactly what it sends and why.</p>` +
+      devs.map(([n, s, st, ids, d]) => `<button class="pdev" data-src="${ids}" data-pid="${P.pid}"><span class="pd-i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg></span>
+        <span class="pd-t"><b>${n}</b><span>${s}</span><span class="pd-st"><i></i>${st}</span></span><span class="pd-c" aria-hidden="true">›</span></button>`).join("") +
+      `<p class="pfoot">Everything in this demo is synthetic. In the full app, you choose what to share and can withdraw consent at any time through ABDM.</p>`;
+  },
+};
+
 // ================================================================== boot
 (async function boot() {
-  setupHelp(); Glossary.init();
+  setupHelp(); Glossary.init(); Sources.init();
   await Data.init();
   await route();
 })();
