@@ -9,7 +9,7 @@ Chaya builds a small, personal physiological model ("twin") for each person with
 | | |
 |---|---|
 | 📹 **Demo video (15–20 min)** | `<<PASTE UNLISTED YOUTUBE LINK>>` |
-| 🌐 **Live app** | https://chaya-tau.vercel.app · home page, simulated clinic, patient app, data-source catalogue, product tour and guided case walkthrough |
+| 🌐 **Live app** | https://chaya-tau.vercel.app · home page, simulated clinic, clinic outcomes, bilingual patient app, data-source catalogue, product tour and guided case walkthrough |
 | 🧭 **Architecture diagram** | [`docs/Chaya_Architecture.pdf`](docs/Chaya_Architecture.pdf) |
 | 📊 **Presentation** | [`docs/Chaya_Presentation.pdf`](docs/Chaya_Presentation.pdf) |
 | ⚖️ **License** | [MIT](LICENSE) |
@@ -139,19 +139,25 @@ Hidden ground truth (true meals, true physiology) sits in `data/_ground_truth/` 
 - **Register**: patients ranked by spike warnings this week, with time-in-range bars.
 - **Replay clock**: one synthetic week (Mon 14 – Sun 20 Sep 2026); everything shows only what Chaya knew at that moment.
 - **Case sheet**: KPIs, the day trace with Chaya's violet 2-hour forecast, meals (logged and ones the twin noticed), steps, sleep, the health record and saved case notes.
-- **Next 2 hours**: a stamp (Spike likely, Watch, In range, Above range, No signal), probability, 2-hour glucose, forecast peak, the three reasons and "Mark warning as reviewed".
+- **Next 2 hours**: a stamp (Spike likely, Watch, In range, Above range, **Low likely, Low now**, No signal), probability, 2-hour glucose, forecast peak, the three reasons and "Mark warning as reviewed".
+- **Low-glucose risk**: the twin's 2-hour forecast dipping below 80 mg/dL raises *Low likely* (deep blue, downward triangle); under 70 is *Low now*. On the held-out week it warned of 7 of 10 lows, a median 80 minutes early, at about 1 low warning per patient a week. Patients on sulfonylureas or insulin are flagged in the register.
+- **Escalation**: every spike or low warning gets an owner (care coordinator, doctor on call, diabetes educator) and a contact-by time. The owner sends a prefilled WhatsApp message or logs a call outcome; open escalations go overdue and move to the doctor on call. Stored in Supabase.
+- **Alert threshold**: the *Alerts* control in the clinic bar sets how readily spike warnings fire, with the measured trade-off (2.6–4.6 warnings per patient a day against 74–98% of spikes warned within 2 h).
 - **Patient's twin**: insulin sensitivity, insulin response and resting glucose against the cohort and the EHR-only estimate.
 - **Rx pad**: write advice (meal, timing, walk, sleep, metformin), see the four-hour simulation, then **save and send it to the patient**: it is stored in the case notes in the database and appears in the patient app.
 - **Sources** buttons on every panel, and LOINC codes on every health-record field, open where that number comes from.
 
-**Patient app** (`/#/patient/GT-1102`) is what the patient sees on their phone, shown in a phone frame on desktop and full-screen on mobile:
-- **Today**: current glucose from the sensor with a trend arrow, the last three hours and the next two as a violet shadow, a plain-language heads-up, steps, sleep, doses and today's meals.
+**Clinic outcomes** (`/#/outcomes`): the panel's week for a hospital buyer: patients meeting the time-in-range goal, daily time in range per patient, low-glucose safety for sulfonylurea and insulin users, alert load at the current threshold, the warning-to-action funnel (warnings → reviewed → escalated → contacted → advice sent → seen by patient, live from the database) and a per-patient table.
+
+**Patient app** (`/#/patient/GT-1102`) is the patient's carbon copy of the Rx pad, in **English or Hindi**, shown in a phone frame on desktop and full-screen on mobile:
+- **Today**: current glucose with a trend arrow, the last three hours and the next two as a violet shadow, plain-language alerts (a low-glucose alert walks the patient through the 15 g sugar rule and logs it), **medicine reminders** at the patient's own usual dose times (taken, due, snooze, missed), today's log, time in range, steps and sleep.
+- **Log**: pick a dish from the 38-dish Indian library (with the patient's usual dishes first) or add a photo; the twin previews the peak and what a 15-minute walk changes. Logged meals and doses are stored and join the twin's inputs, so the clinic sees them too.
 - **Advice**: every note the doctor saved on the Rx pad, in handwriting, with what the twin projects it will do; the patient taps *Got it*.
 - **Week**: time in range day by day, average glucose, GMI against the last lab HbA1c, sleep and steps.
 - **My data**: each connected device and record (CGM, smartwatch, meal log, medicine log, ABHA-linked health record) with when it last sent data.
 - No risk percentages, twin parameters or other patients are shown to the patient.
 
-**Data sources** (`/#/data`) lists all 23 parameters Chaya monitors, grouped into wearables, patient app logs, the health record and values computed by Chaya. Each has what it is used for, where this prototype gets it (file and simulation details), where it would come from in a clinic (device, API, ABDM), its standard code (LOINC, SNOMED CT, FHIR resource) and its cadence. Opened from a case, it also shows that patient's data completeness: CGM coverage, meals logged and noticed, doses and nights recorded.
+**Data sources** (`/#/data`) lists all 25 parameters Chaya monitors, grouped into wearables, patient app logs, the health record and values computed by Chaya. Each has what it is used for, where this prototype gets it (file and simulation details), where it would come from in a clinic (device, API, ABDM), its standard code (LOINC, SNOMED CT, FHIR resource) and its cadence. Opened from a case, it also shows that patient's data completeness: CGM coverage, meals logged and noticed, doses and nights recorded.
 
 **Guidance built in**: a first-visit welcome slip, a 9-stop **product tour**, a 9-step **guided case walkthrough** (Sanjay's Sunday lunch: biryani 237 → ragi mudde 194 → plus a 20-minute walk 178 mg/dL, ending on his phone), a **What's what** glossary, a **Where the data comes from** guide, and an `i` button on every panel.
 

@@ -18,12 +18,13 @@ World: the Indian OPD prescription pad. Pale pad-green ruled paper, ballpoint-bl
 | Spike likely stamp | `--alert` | #bd3326 | #ff7d6b |
 | Watch stamp | `--watch` | #8f5400 | #f0b252 |
 | In range stamp | `--ok` | #276f45 | #74cf98 |
+| Low-glucose risk | `--low` / `--low-soft` | #0e6688 / #d9edf4 | (light only) |
 | Target band 70–180 | `--band` | #dcebd6 | #18302a |
 | What happened next | `--replay` | #a3a9c2 | #59618a |
 | Tour slip | `--chit` | #fff5c4 | #3b3518 |
 | Synthetic strip | `--strip` | #553a9e | #3d2c7a |
 
-Type: **Archivo** variable (UI at 100% width; letterhead and headings at 70–74% width, 800 weight), **Kalam** for handwriting (patient fields, Rx advice, tour headings, Devanagari छाया), **JetBrains Mono** for readings and times only. Scale `--t-xs` 12px → `--t-3xl` clamp(2.6–4.6rem). Spacing 4/8/12/16/24/32/48/72. Radii 3px and 6px. Elevation: neutral `--lift`, `--lift-hi`. Motion: `--ease` cubic-bezier(.16,1,.3,1); one signature moment, the stamp press.
+Type: **Hind** (self-hosted, Devanagari only) backs Archivo for Hindi text. **Archivo** variable (UI at 100% width; letterhead and headings at 70–74% width, 800 weight), **Kalam** for handwriting (patient fields, Rx advice, tour headings, Devanagari छाया), **JetBrains Mono** for readings and times only. Scale `--t-xs` 12px → `--t-3xl` clamp(2.6–4.6rem). Spacing 4/8/12/16/24/32/48/72. Radii 3px and 6px. Elevation: neutral `--lift`, `--lift-hi`. Motion: `--ease` cubic-bezier(.16,1,.3,1); one signature moment, the stamp press.
 
 ## Components
 
@@ -35,9 +36,13 @@ Type: **Archivo** variable (UI at 100% width; letterhead and headings at 70–74
 - **Tour card** (`.tour-card`): yellow tear-off chit with Kalam heading, step dots, Back / Next / Skip; spotlight ring in `--shadow`.
 - **Glossary drawer** (`.drawer`), **welcome slip** (`.welcome`), **toast**.
 
+- **Patient app** (`.phone`, `.pc-*`): the patient's carbon copy. Navy letterhead band with an EN/हिं toggle, the reading on a perforated slip, the doctor's advice as a yellow chit in Kalam, alerts as the one loud surface (solid `--low` for a low now), medicine rows, a ruled fields strip, and a five-slot tab bar with a raised violet Log button that opens a bottom sheet.
+- **Escalation card** (`.esc`): owner, contact-by time and status in the Next 2 hours panel; yellow while open, vermilion tint when overdue, green when resolved.
+- **Threshold popover** (`.thr-pop`): measured trade-off curve with presets.
+
 ## Rules
 
-- Violet means forecast and Chaya's own marks; vermilion means a spike warning; never swap them.
+- Violet means forecast and Chaya's own marks; vermilion means a spike warning; deep blue means low glucose; never swap them.
 - State is always shape plus word (stamp text, triangle markers), never colour alone.
 - Synthetic-data status is visible on every screen (strip under the letterhead).
 - Handwriting is for things a doctor writes; numbers are always mono.

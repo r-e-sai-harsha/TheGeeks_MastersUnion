@@ -134,10 +134,87 @@ const Data = {
     if (this.live) await fetch(`api/patients/${pid}/alerts/${k}/review`, { method: "POST" });
     else { const s = new Set(store.get(`reviewed.${pid}`, [])); s.add(k); store.set(`reviewed.${pid}`, [...s]); }
   },
+  async json(url, opt) {
+    const r = await fetch(url, opt ? { ...opt, headers: { "Content-Type": "application/json" }, body: JSON.stringify(opt.body) } : undefined);
+    if (!r.ok) { let m = "The server didn't accept that."; try { m = (await r.json()).detail || m; } catch { /* not json */ } throw new Error(m); }
+    return r.status === 204 ? null : r.json();
+  },
+  // patient acknowledges advice
+  async ackNote(pid, id) {
+    if (this.live) return this.json(`api/patients/${pid}/notes/${id}/ack`, { method: "POST", body: {} });
+    store.set(`notes.${pid}`, store.get(`notes.${pid}`, []).map(n => n.id === id ? { ...n, ack_at: new Date().toISOString() } : n));
+  },
+  // escalations
+  async escalations(pid) { return this.live ? this.json(`api/patients/${pid}/escalations`) : store.get(`esc.${pid}`, []); },
+  async addEscalation(pid, body) {
+    if (this.live) return this.json(`api/patients/${pid}/escalations`, { method: "POST", body });
+    const row = { id: Date.now(), pid, status: "open", channel: null, outcome: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...body };
+    store.set(`esc.${pid}`, [row, ...store.get(`esc.${pid}`, [])]); return row;
+  },
+  async updateEscalation(pid, id, patch) {
+    if (this.live) return this.json(`api/escalations/${id}`, { method: "PATCH", body: patch });
+    const list = store.get(`esc.${pid}`, []).map(e => e.id === id ? { ...e, ...patch, updated_at: new Date().toISOString() } : e);
+    store.set(`esc.${pid}`, list); return list.find(e => e.id === id);
+  },
+  // patient app logs (meals and doses)
+  async logs(pid) { return this.live ? this.json(`api/patients/${pid}/logs`) : store.get(`logs.${pid}`, []); },
+  async addLog(pid, body) {
+    if (this.live) return this.json(`api/patients/${pid}/logs`, { method: "POST", body });
+    const row = { id: Date.now(), pid, created_at: new Date().toISOString(), ...body };
+    store.set(`logs.${pid}`, [...store.get(`logs.${pid}`, []), row]); return row;
+  },
+  async deleteLog(pid, id) {
+    if (this.live) return this.json(`api/patients/${pid}/logs/${id}`, { method: "DELETE" });
+    store.set(`logs.${pid}`, store.get(`logs.${pid}`, []).filter(l => l.id !== id));
+  },
+  // panel outcomes: static (precomputed from the synthetic week) + live loop counts
+  async outcomesStatic() { if (!this._out) this._out = await (await fetch("data/outcomes.json")).json(); return this._out; },
+  async outcomesLive() {
+    if (this.live) { try { return await this.json("api/outcomes"); } catch { /* fall through */ } }
+    const reg = await this.getRegister(), by = {}; let notes = 0, acked = 0, reviews = 0, esc = [];
+    reg.forEach(c => { const n = store.get(`notes.${c.pid}`, []), r = store.get(`reviewed.${c.pid}`, []), e = store.get(`esc.${c.pid}`, []);
+      notes += n.length; acked += n.filter(x => x.ack_at).length; reviews += r.length; esc = esc.concat(e);
+      if (n.length || r.length || e.length) by[c.pid] = { notes: n.length, acked: n.filter(x => x.ack_at).length, reviews: r.length, open: e.filter(x => x.status === "open").length, escalations: e.length }; });
+    const mins = esc.filter(e => e.status !== "open").map(e => (new Date(e.updated_at) - new Date(e.created_at)) / 60000).sort((x, y) => x - y);
+    return { notes, notes_acknowledged: acked, reviews, escalations: { total: esc.length, open: esc.filter(e => e.status === "open").length, contacted: esc.filter(e => e.status === "contacted").length,
+      resolved: esc.filter(e => e.status === "resolved").length, low: esc.filter(e => e.kind === "low").length, median_minutes_to_contact: mins.length ? Math.round(mins[Math.floor(mins.length / 2)]) : null },
+      patient_logs: { meals: 0, doses: 0 }, by_patient: by };
+  },
 };
 
+// ================================================================== clinic settings: alert threshold
+/* The clinic chooses how sensitive spike warnings are. Stored per browser; recomputes warnings from the model's probabilities. */
+const Thr = {
+  get(meta) { const v = store.get("threshold", null); return v == null ? meta.threshold : v; },
+  set(v) { store.set("threshold", v); },
+  apply(P, thr) {
+    if (P._thr === thr) return;
+    const pr = P.pred;
+    pr.alert = pr.prob.map((p, i) => p >= thr && P.cgm[pr.k[i]] != null && P.cgm[pr.k[i]] < 180);
+    pr.start = pr.alert.map((a, i) => a && !(i > 0 && pr.alert[i - 1] && pr.k[i] - pr.k[i - 1] <= 3));
+    P._thr = thr;
+  },
+};
+/* Meals and doses the patient logged in the app join the record the twin reads. */
+function mergeLogs(P, logs) {
+  if (!P._meals0) { P._meals0 = P.meals.slice(); P._meds0 = P.meds.slice(); }
+  P.meals = P._meals0.concat(logs.filter(l => l.kind === "meal").map(l => ({ k: l.k, meal: l.meal, carbs: l.carbs, gi: l.gi, slot: "app", app: l.id, photo: l.photo })));
+  P.meds = P._meds0.concat(logs.filter(l => l.kind === "dose").map(l => ({ k: l.k, drug: l.drug, app: l.id })));
+  P._logs = logs;
+}
+/* Low-glucose risk from the twin: forecast dips below 80 mg/dL within 2 h (or glucose already below 70). */
+const LOW_FLOOR = 80;
+function lowRisk(P, i, k, fc) {
+  const cg = P.cgm[k];
+  if (cg != null && cg < 70) return { now: true, min: cg, at: 0 };
+  if (!fc || cg == null) return null;
+  const mn = Math.min(...fc);
+  if (mn >= LOW_FLOOR) return null;
+  return { now: false, min: mn, at: fc.indexOf(mn) + 1 };
+}
+
 // ================================================================== router
-const views = { home: $("#view-home"), clinic: $("#view-clinic"), patient: $("#view-patient"), data: $("#view-data") };
+const views = { home: $("#view-home"), clinic: $("#view-clinic"), patient: $("#view-patient"), data: $("#view-data"), outcomes: $("#view-outcomes") };
 let current = null;
 function parseHash() {
   const h = location.hash || "#/";
@@ -145,7 +222,7 @@ function parseHash() {
   const [path, q] = h.slice(2).split("?");
   const params = new URLSearchParams(q || "");
   const parts = path.split("/").filter(Boolean);
-  return { view: ["clinic", "patient", "data"].includes(parts[0]) ? parts[0] : "home", pid: parts[1], params };
+  return { view: ["clinic", "patient", "data", "outcomes"].includes(parts[0]) ? parts[0] : "home", pid: parts[1], params };
 }
 async function route() {
   const r = parseHash();
@@ -153,7 +230,10 @@ async function route() {
   $("#cta-top").hidden = r.view !== "home";
   renderNav(r.view);
   Sources.close();
-  if (r.view === "data") { Sources.renderPage(r.params.get("p")); if (current !== "data") window.scrollTo(0, 0); }
+  const tp = r.params && r.params.get("t");
+  if (tp && /^[0-6]\.\d{1,2}$/.test(tp)) { const [dd, ss] = tp.split(".").map(Number); if (ss <= 95) { S.day = dd; S.slot = ss; } }
+  if (r.view === "outcomes") { Clinic.togglePlay(false); if (current !== "outcomes") window.scrollTo(0, 0); await Outcomes.render(); }
+  else if (r.view === "data") { Sources.renderPage(r.params.get("p")); if (current !== "data") window.scrollTo(0, 0); }
   else if (r.view === "patient") { Clinic.togglePlay(false); if (current !== "patient") window.scrollTo(0, 0); await Patient.init(r.pid); }
   else if (r.view === "home") {
     if (current !== "home") { await Home.init(); window.scrollTo(0, 0); }
@@ -172,7 +252,7 @@ function renderNav(view) {
   const pid = Patient.pid || S.pid || "GT-1102";
   const links = view === "home"
     ? [["#how", "How it works"], ["#sources", "Data sources"], ["#evidence", "Evidence"], ["#india", "Built for India"], ["#safety", "Safety"]]
-    : [["#/", "Home"], [`#/clinic/${S.pid || pid}`, "Clinic", view === "clinic"], [`#/patient/${pid}`, "Patient app", view === "patient"], ["#/data", "Data sources", view === "data"]];
+    : [["#/", "Home"], [`#/clinic/${S.pid || pid}`, "Clinic", view === "clinic"], ["#/outcomes", "Outcomes", view === "outcomes"], [`#/patient/${pid}`, "Patient app", view === "patient"], ["#/data", "Data sources", view === "data"]];
   $("#navlinks").innerHTML = links.map(([h, t, cur]) => `<a href="${h}"${cur ? ' aria-current="page"' : ""}>${t}</a>`).join("");
 }
 window.addEventListener("hashchange", route);
@@ -278,7 +358,9 @@ const Clinic = {
     if (!this.ready) {
       this.ready = true;
       this.meta = await Data.getMeta();
-      this.setupClock(); this.setupRx(); this.setupRegister();
+      try { this.out = await Data.outcomesStatic(); } catch { this.out = null; }
+      this.setupClock(); this.setupRx(); this.setupRegister(); this.setupThreshold(); this.setupEscalation();
+      Data.outcomesLive().then(l => { this.loop = l; this.renderRegister(); }).catch(() => {});
       $("#notes").addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (b) this.deleteNote(+b.dataset.del); });
       $("#save-note").addEventListener("click", () => this.saveNote());
       $("#review-wrap").addEventListener("click", e => { if (e.target.closest("#review-btn")) this.review(); });
@@ -289,7 +371,7 @@ const Clinic = {
     await this.renderRegister();
     const target = pid || S.pid || "GT-1102";
     if (target !== S.pid) await this.open(target);
-    else { await this.loadNotes(); this.renderTime(); }
+    else { const P = this.P(); if (P) { try { mergeLogs(P, await Data.logs(S.pid)); S.esc = await Data.escalations(S.pid); } catch { /* keep cached */ } } await this.loadNotes(); this.renderTime(); }
   },
   P() { return Data.cases.get(S.pid); },
   kNow() { return S.day * 288 + S.slot * 3; },
@@ -302,9 +384,12 @@ const Clinic = {
     $("#rlist").addEventListener("click", e => { const b = e.target.closest(".rrow"); if (b) { history.replaceState(null, "", `#/clinic/${b.dataset.pid}`); this.open(b.dataset.pid); } });
   },
   async renderRegister() {
-    const reg = await Data.getRegister(), q = $("#search").value.trim().toLowerCase(), sort = $("#sort").value;
+    const reg0 = await Data.getRegister(), q = $("#search").value.trim().toLowerCase(), sort = $("#sort").value;
+    const thr = Thr.get(this.meta), out = this.out, key = out ? Object.keys(out.patients[reg0[0].pid].alerts_by_t).reduce((b, t) => Math.abs(+t - thr) < Math.abs(+b - thr) ? t : b) : null;
+    const reg = reg0.map(c => { const o = out && out.patients[c.pid], l = this.loop && this.loop.by_patient[c.pid];
+      return { ...c, alerts: o && key ? o.alerts_by_t[key] : c.alerts, low: o ? o.low_flags + o.lows : 0, hypo: o ? o.hypo_med : false, open: l ? l.open : 0 }; });
     const rows = reg.filter(c => !q || `${c.name} ${c.city} ${c.pid}`.toLowerCase().includes(q));
-    const by = { alerts: (a, b) => b.alerts - a.alerts || a.tir - b.tir, tir: (a, b) => a.tir - b.tir, a1c: (a, b) => b.hba1c - a.hba1c, name: (a, b) => a.name.localeCompare(b.name) }[sort];
+    const by = { alerts: (a, b) => b.open - a.open || b.alerts - a.alerts || a.tir - b.tir, tir: (a, b) => a.tir - b.tir, a1c: (a, b) => b.hba1c - a.hba1c, low: (a, b) => b.low - a.low || b.hypo - a.hypo, name: (a, b) => a.name.localeCompare(b.name) }[sort];
     rows.sort(by);
     $("#reg-count").textContent = `${rows.length} of ${reg.length}`;
     $("#rlist").innerHTML = rows.length ? rows.map(c => {
@@ -312,6 +397,7 @@ const Clinic = {
       return `<button class="rrow" role="listitem" data-pid="${c.pid}" aria-current="${c.pid === S.pid}">
         <span class="nm">${esc(c.name)}</span><span class="count ${cls}" title="Spike warnings this week">${c.alerts} warnings</span>
         <span class="mt">${c.age}${c.sex} · ${esc(c.city)} · ${c.condition}</span><span class="a1c num">A1c ${c.hba1c.toFixed(1)}%</span>
+        ${c.open || (c.hypo && c.low) ? `<span class="rflags">${c.open ? `<span class="rf open">${c.open} open</span>` : ""}${c.hypo && c.low ? `<span class="rf low" title="On a sulfonylurea or insulin, with low-glucose risk this week">low risk</span>` : ""}</span>` : ""}
         <span class="tirbar" title="Time in range ${c.tir}%, above range ${c.tar}%"><i style="width:${c.tir}%;background:var(--ok)"></i><i style="width:${c.tar}%;background:var(--alert)"></i></span>
       </button>`; }).join("") : `<p class="empty">No patient matches “${esc(q)}”. Try a first name, a city or an ID such as GT-1102.</p>`;
   },
@@ -324,6 +410,9 @@ const Clinic = {
     let P;
     try { P = await Data.getCase(pid); }
     catch { $("#case-head").innerHTML = `<div class="loading">We couldn't open ${esc(pid)}. Pick a patient from the register.</div>`; return; }
+    if (S.pid !== pid) return;
+    try { mergeLogs(P, await Data.logs(pid)); } catch { mergeLogs(P, []); }
+    try { S.esc = await Data.escalations(pid); } catch { S.esc = []; }
     if (S.pid !== pid) return;
     S.wi = { meal: null, when: 15, walk: 0, met: 1, sleep: 7, metTouched: false, sleepTouched: false };
     S.wi.meal = this.defaultMeal(P);
@@ -385,6 +474,7 @@ const Clinic = {
     $("#tslider").value = S.slot; $("#tout").textContent = fmtT(S.slot * 15);
     $("#tslider").setAttribute("aria-valuetext", `${DAYS_LONG[S.day]} ${fmtT(S.slot * 15)}`);
     if (!this.P()) return;
+    Thr.apply(this.P(), Thr.get(this.meta));
     this.renderTrace(); this.renderWeek(); this.renderRisk(); this.renderTwin(); this.renderRx();
   },
 
@@ -423,14 +513,20 @@ const Clinic = {
       const xx = x(kk - d0), v = P.cgm[kk] ?? 120;
       svg.append("path").attr("d", `M${xx} ${y(v) - 18} l5.5 10 h-11z`).attr("fill", css("--alert")).append("title").text(`Spike warning at ${fmtT((kk - d0) * 5)}`);
     } });
+    // low-glucose flags from the twin
+    const lowS = this.out && this.out.patients[P.pid] ? this.out.patients[P.pid].low_starts : [];
+    lowS.forEach(kk => { if (kk >= d0 && kk < d0 + 288 && kk <= this.kNow()) {
+      const xx = x(kk - d0), v = P.cgm[kk] ?? 100;
+      svg.append("path").attr("d", `M${xx} ${y(v) + 18} l5.5 -10 h-11z`).attr("fill", css("--low")).append("title").text(`Low-glucose warning at ${fmtT((kk - d0) * 5)}`);
+    } });
     // meals
     const lane = M.t - 10;
     P.meals.filter(m => m.k >= d0 && m.k < d0 + 288).forEach(m => {
       const xx = x(m.k - d0), past = m.k <= this.kNow();
       svg.append("line").attr("x1", xx).attr("x2", xx).attr("y1", lane + 5).attr("y2", M.t + Hg).attr("stroke", css("--watch")).attr("stroke-opacity", past ? .35 : .15);
       const g = svg.append("g").attr("opacity", past ? 1 : .45);
-      g.append("circle").attr("cx", xx).attr("cy", lane).attr("r", 4.2).attr("fill", css("--watch"));
-      g.append("title").text(`${fmtT((m.k - d0) * 5)} ${m.meal} · ${m.carbs} g carbs · GI ${m.gi}`);
+      g.append("circle").attr("cx", xx).attr("cy", lane).attr("r", 4.2).attr("fill", m.app ? css("--sheet") : css("--watch")).attr("stroke", css("--watch")).attr("stroke-width", m.app ? 2 : 0);
+      g.append("title").text(`${fmtT((m.k - d0) * 5)} ${m.meal} · ${m.carbs} g carbs · GI ${m.gi}${m.app ? " · logged in the patient app" : ""}`);
       if (!narrow) svg.append("text").attr("x", xx + 7).attr("y", lane + 4).attr("opacity", past ? 1 : .5).text(`${m.carbs} g`);
     });
     Object.entries(P.twin.inferred).forEach(([kk, g]) => { kk = +kk; if (kk >= d0 && kk < d0 + 288 && kk <= this.kNow() && g >= 4) {
@@ -468,9 +564,13 @@ const Clinic = {
 
   // ---------------------------------------------------------------- next 2 hours
   status(P, i) {
-    const thr = this.meta.threshold, cg = P.cgm[this.kNow()];
+    const thr = Thr.get(this.meta), k = this.kNow(), cg = P.cgm[k];
     const pr = i >= 0 ? P.pred.prob[i] : null;
+    const fc = this._fc && i >= 0 && this._fc.k === P.pred.k[i] ? this._fc.fc : null;
+    const lo = lowRisk(P, i, k, fc);
+    if (lo && lo.now) return { cls: "low", main: "Low now", sub: `${Math.round(cg)} mg/dL`, pr, cg, lo };
     if (cg != null && cg >= 180) return { cls: "watch", main: "Above range", sub: `now ${Math.round(cg)} mg/dL`, pr, cg };
+    if (lo) return { cls: "low", main: "Low likely", sub: `dip to ${Math.round(lo.min)} · next 2 h`, pr, cg, lo };
     if (pr == null || cg == null) return { cls: "na", main: "No signal", sub: "sensor gap", pr, cg };
     if (pr >= thr) return { cls: "alert", main: "Spike likely", sub: `${Math.round(pr * 100)}% · next 2 h`, pr, cg };
     if (pr >= thr * 0.6) return { cls: "watch", main: "Watch", sub: `${Math.round(pr * 100)}% · next 2 h`, pr, cg };
@@ -484,6 +584,8 @@ const Clinic = {
     const fc = this._fc && this._fc.k === P.pred.k[i] ? this._fc.fc : null;
     let line;
     if (s.cls === "na") line = "The sensor has no reading right now, so Chaya holds its forecast until the signal returns.";
+    else if (s.cls === "low" && s.lo.now) line = `Glucose is <b>${Math.round(s.cg)} mg/dL</b>, below 70. Reach the patient now: 15 g of fast sugar, recheck in 15 minutes.`;
+    else if (s.cls === "low") line = `The twin forecasts a dip to <b>${Math.round(s.lo.min)} mg/dL</b> around <b class="num">${fmtT(((P.pred.k[i] % 288) * 5 + 5 + s.lo.at * 5) % 1440)}</b>.`;
     else if (s.cg >= 180) line = `Glucose is already ${Math.round(s.cg)} mg/dL. Chaya forecasts spikes before they start, so the next forecast comes once it is back below 180.`;
     else line = `<b>${Math.round(s.pr * 100)}%</b> chance glucose goes above 180 mg/dL by <b class="num">${fmtT((S.slot * 15 + 120) % 1440)}</b>.`;
     $("#risk-line").innerHTML = line;
@@ -491,11 +593,14 @@ const Clinic = {
     $("#p2h").innerHTML = p2 == null ? "–" : `${Math.round(p2)}<small> mg/dL</small>`;
     if (fc) { const pk = peakOf(fc), at = fc.indexOf(pk); $("#tpeak").innerHTML = `${Math.round(pk)}<small> at ${fmtT(((P.pred.k[i] % 288) * 5 + 5 + (at + 1) * 5) % 1440)}</small>`; }
     else $("#tpeak").textContent = "–";
-    const why = i >= 0 ? P.pred.why[P.pred.k[i]] : null;
-    const show = s.cls === "alert" || s.cls === "watch";
+    let why = i >= 0 ? P.pred.why[P.pred.k[i]] : null;
+    if (s.cls === "low") why = this.lowReasons(P, s);
+    const show = s.cls === "alert" || s.cls === "watch" || s.cls === "low";
     const fix = t => fc ? t.replace(/Twin projects a peak of \d+ mg\/dL/, `Twin projects a peak of ${Math.round(peakOf(fc))} mg/dL`) : t;
-    $("#why").innerHTML = show && why && why.length ? why.map(([g, t]) => `<li><span class="g">${esc(this.meta.groups[g])}</span><span>${esc(fix(t))}</span></li>`).join("")
+    $("#why").innerHTML = show && why && why.length ? why.map(([g, t]) => `<li><span class="g">${esc(g < 0 ? ["", "Low now", "Twin forecast", "Medication", "Meal gap", "Activity"][-g] : this.meta.groups[g])}</span><span>${esc(fix(t))}</span></li>`).join("")
       : `<li class="calm"><span class="g">Nothing pressing</span><span>${s.cls === "na" ? "Waiting for the sensor." : "No strong driver of a spike in the next two hours."}</span></li>`;
+    $("#why").classList.toggle("lowwhy", s.cls === "low");
+    this.renderEscalation(P, i, s);
     // review
     const ep = this.episodeStart(P, i);
     const rev = new Set(P.reviewed || []);
@@ -508,6 +613,128 @@ const Clinic = {
     const P = this.P(), ep = this.episodeStart(P, this.idx(P)); if (ep == null) return;
     try { await Data.review(S.pid, ep); P.reviewed = [...(P.reviewed || []), ep]; this.renderRisk(); toast("Warning marked as reviewed"); }
     catch { toast("Couldn't reach the server. Try again in a moment."); }
+  },
+
+  lowReasons(P, s) {
+    const k = this.kNow(), e = P.ehr, out = [];
+    if (s.lo.now) out.push([-1, `Glucose ${Math.round(s.cg)} mg/dL now, below 70`]);
+    else out.push([-2, `Twin forecast dips to ${Math.round(s.lo.min)} mg/dL within 2 h`]);
+    const drugs = [e.on_sulfonylurea && "glimepiride (a sulfonylurea)", e.on_basal_insulin && "basal insulin"].filter(Boolean);
+    if (drugs.length) out.push([-3, `On ${drugs.join(" and ")}, which can push glucose low`]);
+    const lastMeal = P.meals.filter(m => m.k <= k).reduce((a, m) => Math.max(a, m.k), -999);
+    if (k - lastMeal > 48) out.push([-4, `No meal logged for ${Math.round((k - lastMeal) * 5 / 60)} h`]);
+    const st = P.steps.slice(Math.max(0, k - 12), k + 1).reduce((a, b) => a + b, 0);
+    if (st > 1500) out.push([-5, `${st.toLocaleString("en-IN")} steps in the last hour`]);
+    return out.slice(0, 3);
+  },
+
+  // ---------------------------------------------------------------- escalation
+  OWNERS: ["Care coordinator on duty", "Doctor on call", "Diabetes educator"],
+  setupEscalation() {
+    $("#esc-wrap").addEventListener("click", async e => {
+      const b = e.target.closest("[data-esc]"); if (!b) return;
+      const P = this.P(), act = b.dataset.esc, id = +b.dataset.id;
+      try {
+        if (act === "assign") {
+          const st = JSON.parse(b.dataset.st);
+          const row = await Data.addEscalation(S.pid, { k: st.k, kind: st.kind, owner: $("#esc-owner").value, due_k: st.k + (+$("#esc-due").value) });
+          S.esc = [row, ...S.esc]; toast(`Assigned to ${row.owner}`);
+        } else if (act === "wa") {
+          const row = await Data.updateEscalation(S.pid, id, { channel: "whatsapp", status: "contacted", outcome: "WhatsApp message sent" });
+          S.esc = S.esc.map(x => x.id === id ? row : x);
+        } else if (act === "call") { $("#esc-out").hidden = false; return; }
+        else if (act === "out") {
+          const resolved = b.dataset.v === "resolved";
+          const row = await Data.updateEscalation(S.pid, id, { channel: "call", status: resolved ? "resolved" : b.dataset.v === "noanswer" ? "open" : "contacted", outcome: b.textContent.trim() });
+          S.esc = S.esc.map(x => x.id === id ? row : x); toast(resolved ? "Escalation resolved" : "Call logged");
+        } else if (act === "resolve") {
+          const row = await Data.updateEscalation(S.pid, id, { status: "resolved" }); S.esc = S.esc.map(x => x.id === id ? row : x); toast("Escalation resolved");
+        }
+        Data.outcomesLive().then(l => { this.loop = l; this.renderRegister(); }).catch(() => {});
+        this.renderRisk();
+      } catch (err) { toast(`Couldn't save that. ${err.message || "Try again."}`); }
+    });
+  },
+  episodeKey(P, i, s) {
+    if (s.cls === "low") { const ls = this.out && this.out.patients[P.pid] ? this.out.patients[P.pid].low_starts.filter(k => k <= this.kNow()) : []; return { kind: "low", k: ls.length && this.kNow() - ls[ls.length - 1] < 36 ? ls[ls.length - 1] : P.pred.k[i] }; }
+    const ep = this.episodeStart(P, i); return ep == null ? null : { kind: "spike", k: ep };
+  },
+  waText(P, s) {
+    const n = (S.notes || [])[0], t = fmtT((S.slot * 15 + (s.lo ? s.lo.at * 5 : 120)) % 1440);
+    const body = s.cls === "low"
+      ? `Your glucose may drop below 70 soon. Please have a small snack now and keep something sweet with you. If you feel shaky or sweaty, take 3 glucose tablets or half a glass of juice, check again in 15 minutes, and call us.`
+      : `Chaya shows your glucose may go above 180 by ${t}. ${n ? `Your doctor's advice: ${n.summary}.` : "A 20-minute walk after eating will help."} Reply here or call us if you feel unwell.`;
+    return `Namaste ${P.name} ji, this is your care team at the clinic. ${body} (Demo message: synthetic patient.)`;
+  },
+  renderEscalation(P, i, s) {
+    const wrap = $("#esc-wrap");
+    if (!(s.cls === "alert" || s.cls === "low") || i < 0) { wrap.innerHTML = ""; return; }
+    const ek = this.episodeKey(P, i, s); if (!ek) { wrap.innerHTML = ""; return; }
+    const row = (S.esc || []).find(x => x.kind === ek.kind && x.k === ek.k), now = this.kNow();
+    const tm = k => `${DAYS[Math.floor(k / 288)]} ${fmtT((k % 288) * 5)}`;
+    if (!row) {
+      const fc = this._fc && this._fc.fc, cross = fc ? fc.findIndex(v => v > 180) : -1;
+      const before = ek.kind === "spike" && cross > 0 ? Math.max(3, cross - 6) : 3;
+      const opts = [[3, "15 min"], [6, "30 min"], [12, "1 h"]]; if (!opts.some(o => o[0] === before)) opts.unshift([before, `before ${ek.kind === "spike" ? "the spike" : "the dip"}`]);
+      wrap.innerHTML = `<div class="esc"><div class="esc-h"><b>Who acts on this?</b><span>Nothing is assigned yet.</span></div>
+        <div class="esc-form"><label>Owner<select id="esc-owner">${this.OWNERS.map((o, j) => `<option${(ek.kind === "low" ? 1 : 0) === j ? " selected" : ""}>${o}</option>`).join("")}</select></label>
+        <label>Contact within<select id="esc-due">${opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select></label></div>
+        <button class="btn btn-primary btn-sm" data-esc="assign" data-st='${JSON.stringify(ek)}'>Assign and start the clock</button></div>`;
+      return;
+    }
+    const due = row.due_k, left = (due - now) * 5, overdue = row.status === "open" && left < 0;
+    const stTxt = { open: overdue ? `Overdue by ${-left} min · moves to Doctor on call` : `Due ${tm(due)} · ${left} min left`, contacted: "Patient contacted", resolved: "Resolved" }[row.status];
+    const wa = `https://wa.me/?text=${encodeURIComponent(this.waText(P, s))}`;
+    wrap.innerHTML = `<div class="esc ${row.status}${overdue ? " overdue" : ""}"><div class="esc-h"><b>${esc(row.owner)}</b><span class="esc-st">${stTxt}</span></div>
+      ${row.outcome ? `<p class="esc-o">${esc(row.outcome)}${row.channel ? ` · ${row.channel === "whatsapp" ? "WhatsApp" : row.channel === "call" ? "call" : "app"}` : ""}</p>` : ""}
+      ${row.status === "resolved" ? "" : `<div class="esc-acts"><a class="btn btn-quiet btn-sm" href="${wa}" target="_blank" rel="noopener" data-esc="wa" data-id="${row.id}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 10c.5 2 2 3.5 4 4l1.2-1.2 2 1-.6 1.6c-3.4.2-7-3.4-6.8-6.8L10.4 8l1 2z"/></svg>WhatsApp</a>
+        <button class="btn btn-quiet btn-sm" data-esc="call" data-id="${row.id}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Log a call</button>
+        ${row.status === "contacted" ? `<button class="btn btn-quiet btn-sm" data-esc="resolve" data-id="${row.id}">Mark resolved</button>` : ""}</div>
+        <div class="esc-out" id="esc-out" hidden>${[["reached", "Reached, advice given"], ["noanswer", "No answer, will retry"], ["resolved", "Reached, resolved"]].map(([v, l]) => `<button class="chip" data-esc="out" data-v="${v}" data-id="${row.id}">${l}</button>`).join("")}</div>`}</div>`;
+  },
+
+  // ---------------------------------------------------------------- alert threshold
+  setupThreshold() {
+    const btn = $("#thr-btn"), pop = $("#thr-pop");
+    const close = () => { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+    btn.addEventListener("click", e => { e.stopPropagation(); const open = pop.hidden; pop.hidden = !open; btn.setAttribute("aria-expanded", open); if (open) this.renderThreshold(); });
+    document.addEventListener("click", e => { if (!e.target.closest("#thr-menu")) close(); });
+    pop.addEventListener("keydown", e => { if (e.key === "Escape") { close(); btn.focus(); } });
+    pop.addEventListener("input", e => { if (e.target.id === "thr-range") this.setThreshold(this.out.curve[+e.target.value].t); });
+    pop.addEventListener("click", e => { const b = e.target.closest("[data-thr]"); if (b) this.setThreshold(b.dataset.thr === "default" ? null : +b.dataset.thr); });
+    this.labelThreshold();
+  },
+  setThreshold(v) {
+    if (v == null) { try { localStorage.removeItem("chaya.threshold"); } catch { /* storage unavailable */ } } else Thr.set(v);
+    Data.cases.forEach(P => Thr.apply(P, Thr.get(this.meta)));
+    this.labelThreshold(); this.renderThreshold(); this.renderRegister(); if (S.pid) this.renderTime();
+  },
+  curveAt(t) { const c = this.out.curve; return c.reduce((b, p) => Math.abs(p.t - t) < Math.abs(b.t - t) ? p : b, c[0]); },
+  labelThreshold() {
+    if (!this.out) { $("#thr-btn").hidden = true; return; }
+    const t = Thr.get(this.meta), p = this.curveAt(t), d = this.meta.threshold;
+    const name = Math.abs(t - d) < .02 ? "Balanced" : t < d ? "Catch more" : "Fewer alerts";
+    $("#thr-t").textContent = `${name} · ${p.alerts_per_patient_day.toFixed(1)}/day`;
+  },
+  renderThreshold() {
+    if (!this.out || $("#thr-pop").hidden) return;
+    const c = this.out.curve, t = Thr.get(this.meta), p = this.curveAt(t), j = c.indexOf(p), d = this.meta.threshold;
+    const W = 300, H = 132, M = { l: 34, r: 8, t: 10, b: 24 };
+    const x = d3.scaleLinear([2.4, 4.7], [M.l, W - M.r]), y = d3.scaleLinear([.7, 1], [H - M.b, M.t]);
+    const path = d3.line().x(q => x(q.alerts_per_patient_day)).y(q => y(q.onsets_warned)).curve(d3.curveMonotoneX)([...c].sort((a, b) => a.alerts_per_patient_day - b.alerts_per_patient_day));
+    $("#thr-body").innerHTML = `<p class="thr-lead">Set how readily Chaya warns about spikes. Lower means more warnings and fewer missed spikes. Applies to every patient in this browser.</p>
+      <div class="thr-now"><div><b class="num">${p.alerts_per_patient_day.toFixed(1)}</b><span>warnings per patient a day</span></div><div><b class="num">${Math.round(p.onsets_warned * 100)}%</b><span>of spikes warned within 2 h</span></div></div>
+      <svg viewBox="0 0 ${W} ${H}" class="thr-svg" role="img" aria-label="Trade-off between warnings per day and spikes caught">
+        ${[.7, .8, .9, 1].map(v => `<line x1="${M.l}" x2="${W - M.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--edge)"/><text x="${M.l - 5}" y="${y(v) + 3}" text-anchor="end">${v * 100}%</text>`).join("")}
+        ${[2.5, 3, 3.5, 4, 4.5].map(v => `<text x="${x(v)}" y="${H - 8}" text-anchor="middle">${v}</text>`).join("")}
+        <path d="${path}" fill="none" stroke="var(--ink-3)" stroke-width="1.6"/>
+        <circle cx="${x(this.curveAt(d).alerts_per_patient_day)}" cy="${y(this.curveAt(d).onsets_warned)}" r="3.5" fill="var(--sheet)" stroke="var(--ink-3)" stroke-width="1.5"><title>Model default</title></circle>
+        <circle cx="${x(p.alerts_per_patient_day)}" cy="${y(p.onsets_warned)}" r="6" fill="var(--shadow)" stroke="var(--sheet)" stroke-width="2"/>
+      </svg>
+      <div class="thr-axis"><span>fewer warnings</span><span>warnings per patient a day →</span></div>
+      <label class="thr-range"><span>Threshold <b class="num">${Math.round(t * 100)}%</b> chance of a spike</span><input id="thr-range" type="range" min="0" max="${c.length - 1}" step="1" value="${j}" aria-valuetext="${Math.round(t * 100)} percent"></label>
+      <div class="seg thr-pre">${[[c.find(q => q.t === .25).t, "Catch more"], ["default", "Balanced"], [c.find(q => q.t === .85).t, "Fewer alerts"]].map(([v, l]) => `<button data-thr="${v}" aria-pressed="${v === "default" ? Math.abs(t - d) < .02 : Math.abs(t - v) < .001}">${l}</button>`).join("")}</div>
+      <p class="thr-f">From the 45 held-out synthetic patients (scripts/build_outcomes.js). Low-glucose warnings come from the twin and are not affected.</p>`;
   },
 
   // ---------------------------------------------------------------- twin
@@ -646,6 +873,10 @@ const TERMS = [
   ["tir", "Time in range", "Share of readings between 70 and 180 mg/dL this week. The usual goal is above 70%.", "Case sheet"],
   ["gmi", "GMI", "Glucose management indicator: an HbA1c-like number estimated from the week's average CGM reading.", "Case sheet"],
   ["cv", "Variability (CV)", "How much glucose swings, as a coefficient of variation. 36% or lower is considered stable.", "Case sheet"],
+  ["low", "Low likely / Low now", "Low now: glucose is under 70 mg/dL. Low likely: the patient's twin forecasts a dip below 80 mg/dL within two hours. Shown in deep blue with a downward triangle. On the held-out synthetic week the twin warned of 7 of 10 lows, a median 80 minutes early. Matters most for patients on a sulfonylurea (glimepiride) or insulin.", "Next 2 hours"],
+  ["escalation", "Escalation", "Every spike or low warning can be given an owner and a deadline. The owner messages the patient on WhatsApp or logs a call; if it is still open after the deadline it is marked overdue and moves to the doctor on call. Stored in the clinic database.", "Next 2 hours"],
+  ["threshold", "Alert threshold", "How high the model's spike probability must be before Chaya warns. Lower catches more spikes but sends more warnings. The Alerts control shows the trade-off measured on the 45 held-out patients. Saved in this browser.", "Top bar"],
+  ["outcomes", "Clinic outcomes", "The panel's week: time in range per patient and per day, low-glucose safety, alert load, and how warnings turned into reviews, escalations, advice and patient acknowledgements.", "Outcomes"],
   ["papp", "Patient app", "What the patient sees on their phone: current glucose from their sensor with the next two hours as a violet shadow, the advice their doctor saved on the Rx pad, their week, and the devices sending data. No risk scores or twin parameters.", "Patient app"],
   ["sources", "Data sources", "Every parameter is tagged with where it comes from: the wearables (CGM, smartwatch), the patient's own logs (meals, doses), the health record (FHIR, with LOINC and SNOMED codes), or Chaya's own calculations. Open Guide → Where the data comes from, or any Sources button.", "Everywhere"],
   ["live", "Live or offline", "Live means the clinic is served by the Chaya API on Vercel and its PostgreSQL database on Supabase. Offline demo means the API is not reachable here, so the same data runs from files bundled with the page.", "Top bar"],
@@ -818,13 +1049,13 @@ const SRC = [
     real: "Sleep tracking on the smartwatch.", std: "FHIR Observation · LOINC 93832-4", every: "Nightly, staged every 5 min" },
   // patient logs
   { id: "meals", s: "log", name: "Meals", unit: "dish, carbs g, GI", use: "Meal markers; the twin's gut model; the Recent meal and Usual meal reasons; Rx pad choices.",
-    proto: "Drawn from a library of 38 Indian dishes with carbs and GI. Patients log only 45–98% of meals and under-estimate carbs. data/wearables/meal_log.csv.",
+    proto: "Drawn from a library of 38 Indian dishes with carbs and GI. Patients log only 45–98% of meals and under-estimate carbs. data/wearables/meal_log.csv, plus meals logged in the patient app (Supabase table patient_logs).",
     real: "Logged in the patient app by searching a dish or taking a photo; carbs from India's food composition tables (NIN, IFCT 2017), GI from published tables.", std: "FHIR NutritionIntake", every: "Each meal" },
   { id: "unlogged", s: "calc", name: "Meals nobody logged", unit: "g carbs", use: "Violet rings on the trace; the Unlogged meal reason.",
     proto: "The twin compares glucose with what was logged; a rise it cannot explain is estimated as a hidden meal.",
     real: "Same method, on real sensor data.", std: "Derived", every: "Every 5 min" },
   { id: "meds", s: "log", name: "Medicine doses", unit: "dose taken", use: "Missed metformin raises the twin's resting glucose; the Medication reason; Rx pad default.",
-    proto: "Prescribed doses, with misses simulated from each patient's adherence. data/wearables/medication_log.csv.",
+    proto: "Prescribed doses, with misses simulated from each patient's adherence. data/wearables/medication_log.csv, plus doses marked in the patient app's reminders (patient_logs).",
     real: "A tap in the patient app or a smart pill box reminder; the prescription itself comes from the record.", std: "FHIR MedicationAdministration", every: "Each dose" },
   // EHR
   { id: "ehr", s: "ehr", name: "Patient, diagnoses and prescriptions", unit: "", use: "Case header; diabetes type and medicines set the twin's starting point.",
@@ -846,6 +1077,9 @@ const SRC = [
   { id: "forecast", s: "calc", name: "2-hour glucose forecast", unit: "mg/dL", use: "The violet shadow on every chart; Glucose in 2 h; the patient's Today chart.",
     proto: "The twin runs ahead from now on the patient's usual routine, combined with a LightGBM regressor. src/chaya/model.py.", real: "Same.", std: "Derived", every: "Every 15 min" },
   { id: "risk", s: "calc", name: "Spike risk and stamp", unit: "probability", use: "Next 2 hours stamp, warnings, register counts.", proto: "LightGBM classifier on 54 fused features (18 record, 25 wearable, 11 twin). Back-to-back warnings merge into one episode.", real: "Same, with the threshold set by the clinic.", std: "Derived", every: "Every 15 min" },
+  { id: "low", s: "calc", name: "Low-glucose risk", unit: "mg/dL", use: "Low likely / Low now stamp, blue triangles on the trace, the patient's low-glucose alert.",
+    proto: "Low now when CGM is under 70. Low likely when the twin's 2-hour forecast dips below 80 while glucose is still 70 or more. Held-out week: 7 of 10 lows warned, median 80 min early. scripts/build_outcomes.js.", real: "Same, validated on real CGM from patients on sulfonylureas or insulin before use.", std: "Derived", every: "Every 15 min" },
+  { id: "escalations", s: "calc", name: "Escalations", unit: "", use: "Owner, deadline and outcome for each warning; Outcomes funnel.", proto: "Created in the clinic and stored in the Supabase table escalations (owner, due time, status, channel, outcome).", real: "Same, tied to the clinic's staff roster and WhatsApp Business account.", std: "FHIR Task / Communication", every: "When staff act" },
   { id: "reasons", s: "calc", name: "Reasons for a warning", unit: "", use: "Why Chaya says this.", proto: "SHAP values per feature, grouped into plain-language drivers. src/chaya/explain.py.", real: "Same.", std: "Derived", every: "With each warning" },
   { id: "kpi", s: "calc", name: "Time in range, GMI, variability", unit: "", use: "Case sheet tiles and the patient's Week view.", proto: "From the CGM: share of readings 70–180 mg/dL; GMI = 3.31 + 0.02392 × mean glucose; CV = SD / mean.", real: "Same, per international CGM consensus targets.", std: "Derived", every: "Live" },
   { id: "notes", s: "calc", name: "Doctor's advice and reviews", unit: "", use: "Case notes in the clinic; Advice in the patient app.", proto: "Written on the Rx pad and stored in the Supabase database (tables case_notes and alert_reviews) with the twin's projection.", real: "Same, inside the clinic's system, with the doctor's identity.", std: "FHIR CarePlan / Communication", every: "When the doctor saves" },
@@ -935,155 +1169,424 @@ function twinForecast(P, i, H = 120) {
   const r = carryMeals(P, k, routine(P.twin, sm, H, true));
   return { k, start: st[0], fc: forecast(P.twin.params, st, sm, H, r.steps, r.meal, r.kab, P.twin.si_mult[day], P.twin.gb_shift[day], P.twin.su[i]) };
 }
+/* ---------------- patient app: words in English and Hindi ---------------- */
+const PT = {
+  en: {
+    morning: "Good morning", afternoon: "Good afternoon", evening: "Good evening", synthetic: "Synthetic demo",
+    tToday: "Today", tAdvice: "Advice", tLog: "Log", tWeek: "Week", tData: "My data",
+    inRange: "In range", above: "Above range", below: "Below range", noRead: "No reading",
+    tr: { upfast: "rising fast", up: "rising", flat: "steady", down: "falling", downfast: "falling fast" },
+    fromSensor: n => n == null ? "Sensor gap" : n ? `From your sensor · ${n} min ago` : "From your sensor · just now",
+    legYou: "Your glucose", legChaya: "Chaya's forecast", legTarget: "Target 70–180",
+    expect: (v, t) => `Chaya expects about <b>${v}</b> around ${t}.`, steady: "Looking steady for the next 2 hours.",
+    lowNowH: "Your glucose is low", lowNow1: "Have 15 g of fast sugar: 3 glucose tablets, half a glass of juice, or 1 tablespoon of sugar in water.",
+    lowNow2: "Rest, then check again in 15 minutes.", lowNow3: "If it is still under 70, repeat once and call your care team.", lowNowB: "I've had 15 g of sugar",
+    lowSoonH: "Your glucose may go low in the next 2 hours", lowSoon: "Don't skip your next meal, and keep something sweet with you. Your care team can see this too.",
+    spikeH: "Your glucose may go above 180", spike: (v, t) => `Chaya expects about ${v} around ${t}. A 15-minute walk after eating usually helps. Your care team can see this too.`,
+    highH: "Your glucose is above 180", high: "A short walk helps bring it down. Drink some water.",
+    fromDoc: "From your doctor", allAdvice: "See all advice",
+    meds: "Medicines today", tlTaken: "Dose taken", taken: t => `Taken ${t}`, due: "Due now", missed: "Missed", later: t => `At ${t}`, snoozed: t => `Reminder at ${t}`,
+    bTaken: "Taken", bSnooze: "Remind me in 30 min", bTook: "I took it",
+    today: "Today so far", nothing: "Nothing logged yet today.", logMeal: "Log a meal", inApp: "logged in the app",
+    fRange: "In range today", fSteps: "Steps", fSleep: "Sleep last night", goal: "goal 70%+", watch: "from your watch", bed: t => `bed ${t}`,
+    weekH: p => `${p}% of this week in range`, weekGoal: "Your goal is 70% or more.", byDay: "Time in range, day by day",
+    avg: "Average glucose", a1c: "Estimated A1c", lastLab: v => `last lab ${v}%`, warns: "Warnings this week", warnsS: "also sent to your care team",
+    sleepSteps: "Sleep and steps", hSleep: "h sleep", steps: "steps",
+    careTeam: "From your care team", should: "What it should do", peakVs: (a, b) => `Peak about <b>${a}</b> instead of ${b} mg/dL`,
+    minAbove: n => n ? `${n} min above 180` : "Stays under 180", gotIt: "Got it", seen: "Seen",
+    noAdvice: "No advice yet", noAdviceB: "When your doctor writes advice on the Rx pad, it arrives here with what it should do for your glucose.",
+    adviceFoot: "Advice is written by your doctor and projected by your twin. Talk to your doctor before changing any medicine.",
+    dataIntro: "Chaya combines these into your twin. Tap one to see exactly what it sends and why.",
+    dCgm: "Glucose sensor (CGM)", dCgmS: "Reads every 5 minutes", dWatch: "Smartwatch", dWatchS: "Steps, heart rate, sleep and HRV",
+    dMeal: "Meal log", dMealS: "What you log here", dMed: "Medicine log", dMedS: "Doses you mark as taken", dEhr: "Health record", dEhrS: "Linked to your ABHA number",
+    last: t => `last ${t}`, cover: p => `${p}% of the week covered`, nights: n => `${n} nights recorded`, mealsN: n => `${n} meals logged`, dosesN: n => `${n} doses`,
+    dataFoot: "Everything in this demo is synthetic. In the full app, you choose what to share and can withdraw consent at any time through ABDM.",
+    sheetH: "Log", meal: "Meal", medicine: "Medicine", when: "When", now: "Now", ago: n => n >= 60 ? `${n / 60} h ago` : `${n} min ago`,
+    photo: "Add a photo", photoOn: "Photo added", search: "Search 38 dishes", usual: "You often have", will: "What this meal will do",
+    peakAt: (v, t) => `Peak about <b>${v}</b> around ${t}`, withWalk: v => `With a 15-minute walk after: <b>${v}</b>`, save: "Log this meal",
+    pick: "Pick a dish to see what it will do.", doseH: "Mark a dose as taken", takenNow: "Taken now", saved: "Logged. Your twin has it.", carbs: "g carbs",
+    close: "Close",
+  },
+  hi: {
+    morning: "सुप्रभात", afternoon: "नमस्ते", evening: "शुभ संध्या", synthetic: "सिंथेटिक डेमो",
+    tToday: "आज", tAdvice: "सलाह", tLog: "दर्ज करें", tWeek: "हफ़्ता", tData: "मेरा डेटा",
+    inRange: "सीमा में", above: "सीमा से ऊपर", below: "सीमा से नीचे", noRead: "रीडिंग नहीं",
+    tr: { upfast: "तेज़ी से बढ़ रहा", up: "बढ़ रहा", flat: "स्थिर", down: "घट रहा", downfast: "तेज़ी से घट रहा" },
+    fromSensor: n => n == null ? "सेंसर से रीडिंग नहीं" : n ? `आपके सेंसर से · ${n} मिनट पहले` : "आपके सेंसर से · अभी",
+    legYou: "आपका ग्लूकोज़", legChaya: "छाया का अनुमान", legTarget: "लक्ष्य 70–180",
+    expect: (v, t) => `छाया का अनुमान: ${t} के आसपास लगभग <b>${v}</b>।`, steady: "अगले 2 घंटे स्थिर दिख रहे हैं।",
+    lowNowH: "आपका ग्लूकोज़ कम है", lowNow1: "15 ग्राम जल्दी असर करने वाली चीनी लें: 3 ग्लूकोज़ की गोलियाँ, आधा गिलास जूस, या पानी में 1 बड़ा चम्मच चीनी।",
+    lowNow2: "आराम करें, फिर 15 मिनट बाद दोबारा जाँचें।", lowNow3: "अगर तब भी 70 से कम हो, तो एक बार और लें और अपनी केयर टीम को फ़ोन करें।", lowNowB: "मैंने 15 ग्राम चीनी ले ली",
+    lowSoonH: "अगले 2 घंटों में आपका ग्लूकोज़ कम हो सकता है", lowSoon: "अगला खाना न छोड़ें और कुछ मीठा साथ रखें। आपकी केयर टीम भी यह देख सकती है।",
+    spikeH: "आपका ग्लूकोज़ 180 से ऊपर जा सकता है", spike: (v, t) => `छाया का अनुमान: ${t} के आसपास लगभग ${v}। खाने के बाद 15 मिनट टहलना आम तौर पर मदद करता है। आपकी केयर टीम भी यह देख सकती है।`,
+    highH: "आपका ग्लूकोज़ 180 से ऊपर है", high: "थोड़ी देर टहलने से यह कम होता है। थोड़ा पानी पिएँ।",
+    fromDoc: "आपके डॉक्टर की सलाह", allAdvice: "सारी सलाह देखें",
+    meds: "आज की दवाइयाँ", tlTaken: "खुराक ली", taken: t => `${t} पर ली`, due: "अभी लेनी है", missed: "छूट गई", later: t => `${t} पर`, snoozed: t => `${t} पर याद दिलाएँगे`,
+    bTaken: "ले ली", bSnooze: "30 मिनट बाद याद दिलाएँ", bTook: "मैंने ले ली थी",
+    today: "आज अब तक", nothing: "आज अभी तक कुछ दर्ज नहीं किया।", logMeal: "खाना दर्ज करें", inApp: "ऐप में दर्ज",
+    fRange: "आज सीमा में", fSteps: "कदम", fSleep: "कल रात की नींद", goal: "लक्ष्य 70%+", watch: "आपकी घड़ी से", bed: t => `सोए ${t}`,
+    weekH: p => `इस हफ़्ते ${p}% समय सीमा में`, weekGoal: "आपका लक्ष्य 70% या उससे ज़्यादा है।", byDay: "हर दिन सीमा में समय",
+    avg: "औसत ग्लूकोज़", a1c: "अनुमानित A1c", lastLab: v => `पिछली लैब ${v}%`, warns: "इस हफ़्ते की चेतावनियाँ", warnsS: "आपकी केयर टीम को भी भेजी गईं",
+    sleepSteps: "नींद और कदम", hSleep: "घंटे नींद", steps: "कदम",
+    careTeam: "आपकी केयर टीम से", should: "इससे क्या होगा", peakVs: (a, b) => `सबसे ऊँचा लगभग <b>${a}</b>, ${b} mg/dL की जगह`,
+    minAbove: n => n ? `180 से ऊपर ${n} मिनट` : "180 से नीचे रहेगा", gotIt: "समझ गया", seen: "देख लिया",
+    noAdvice: "अभी कोई सलाह नहीं", noAdviceB: "जब आपके डॉक्टर Rx पैड पर सलाह लिखेंगे, वह यहाँ आएगी, साथ में यह भी कि आपके ग्लूकोज़ पर उसका क्या असर होगा।",
+    adviceFoot: "सलाह आपके डॉक्टर ने लिखी है और उसका असर आपके ट्विन ने आँका है। कोई भी दवा बदलने से पहले अपने डॉक्टर से बात करें।",
+    dataIntro: "छाया इन्हें मिलाकर आपका ट्विन बनाती है। किसी पर टैप करें और देखें कि वह क्या भेजता है और क्यों।",
+    dCgm: "ग्लूकोज़ सेंसर (CGM)", dCgmS: "हर 5 मिनट में पढ़ता है", dWatch: "स्मार्टवॉच", dWatchS: "कदम, धड़कन, नींद और HRV",
+    dMeal: "खाने का रिकॉर्ड", dMealS: "जो आप यहाँ दर्ज करते हैं", dMed: "दवा का रिकॉर्ड", dMedS: "जो खुराक आप दर्ज करते हैं", dEhr: "हेल्थ रिकॉर्ड", dEhrS: "आपके ABHA नंबर से जुड़ा",
+    last: t => `पिछली बार ${t}`, cover: p => `हफ़्ते का ${p}% दर्ज`, nights: n => `${n} रातें दर्ज`, mealsN: n => `${n} बार खाना दर्ज`, dosesN: n => `${n} खुराक`,
+    dataFoot: "इस डेमो का सारा डेटा सिंथेटिक है। असली ऐप में आप तय करते हैं कि क्या साझा करना है, और ABDM के ज़रिए कभी भी सहमति वापस ले सकते हैं।",
+    sheetH: "दर्ज करें", meal: "खाना", medicine: "दवा", when: "कब", now: "अभी", ago: n => n >= 60 ? `${n / 60} घंटा पहले` : `${n} मिनट पहले`,
+    photo: "फ़ोटो जोड़ें", photoOn: "फ़ोटो जुड़ गई", search: "38 व्यंजनों में खोजें", usual: "आप अक्सर खाते हैं", will: "यह खाना क्या करेगा",
+    peakAt: (v, t) => `${t} के आसपास लगभग <b>${v}</b> तक`, withWalk: v => `खाने के बाद 15 मिनट टहलें तो: <b>${v}</b>`, save: "यह खाना दर्ज करें",
+    pick: "असर देखने के लिए कोई व्यंजन चुनें।", doseH: "ली गई खुराक दर्ज करें", takenNow: "अभी ली", saved: "दर्ज हो गया। आपके ट्विन ने इसे जोड़ लिया।", carbs: "ग्रा. कार्ब्स",
+    close: "बंद करें",
+  },
+};
+const ICON = {
+  today: "M3 12h4l3-8 4 16 3-8h4", advice: "M7 3.5h10l3 3V20.5H4V3.5zM8 11h8M8 15h5", week: "M4 20V10M10 20V4M16 20v-7M21 20H3",
+  data: "M5 6c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3",
+  plus: "M12 5v14M5 12h14", check: "M5 12.5l4.5 4.5L19 7.5", close: "M6 6l12 12M18 6 6 18", camera: "M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7",
+  pill: "M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7zM7 10l7 7", meal: "M4 11h16a8 8 0 0 1-16 0zM8 8c0-2 2-2 2-4M12 8c0-2 2-2 2-4", bell: "M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20h4",
+  cgm: "M12 3a9 9 0 1 0 .01 0M12 8v4l3 2", watch: "M8 3h8l1 4H7zM7 17h10l-1 4H8zM6 7h12v10H6z", ehr: "M8 4h8l4 4v12H4V4zM9 13h6M12 10v6", chev: "M9 6l6 6-6 6",
+};
+const svgI = (d, s = 20, w = 1.9) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+
 const Patient = {
-  pid: null, tab: "today", ready: false,
+  pid: null, tab: "today", ready: false, lang: "en", sheet: null,
+  t(key, ...a) { const v = PT[this.lang][key]; return typeof v === "function" ? v(...a) : v; },
   async init(pid) {
     pid = pid || this.pid || S.pid || "GT-1102";
     if (!this.ready) {
-      this.ready = true; this.meta = await Data.getMeta();
+      this.ready = true; this.meta = await Data.getMeta(); this.lang = store.get("plang", "en");
       $("#ps-days").innerHTML = DAYS.map((d, i) => `<button data-d="${i}" aria-pressed="false">${d} ${14 + i}</button>`).join("");
       $("#ps-days").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { S.day = +b.dataset.d; this.render(); } });
       $("#ps-slider").addEventListener("input", e => { S.slot = +e.target.value; this.render(); });
       $("#ps-pick").addEventListener("change", e => { location.hash = `#/patient/${e.target.value}`; });
-      $("#ptabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b) { this.tab = b.dataset.tab; this.render(); $("#pscreen").scrollTop = 0; if (matchMedia("(max-width: 720px)").matches) window.scrollTo(0, 0); } });
-      $("#pscreen").addEventListener("click", e => {
-        const a = e.target.closest("[data-ack]"); if (a) { const s = new Set(store.get(`ack.${this.pid}`, [])); s.add(a.dataset.ack); store.set(`ack.${this.pid}`, [...s]); this.render(); return; }
-        const g = e.target.closest("[data-go]"); if (g) { this.tab = g.dataset.go; this.render(); $("#pscreen").scrollTop = 0; }
-      });
+      $("#ptabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (!b) return; if (b.dataset.tab === "log") { this.openSheet("meal"); return; } this.go(b.dataset.tab); });
+      $("#phone").addEventListener("click", e => this.onClick(e));
+      $("#phone").addEventListener("input", e => { if (e.target.id === "ps-search") { this.sheet.q = e.target.value; this.renderSheet(true); } });
+      $("#phone").addEventListener("change", e => { if (e.target.id === "ps-photo" && e.target.files[0]) { const r = new FileReader(); r.onload = () => { this.sheet.photo = r.result; this.renderSheet(); }; r.readAsDataURL(e.target.files[0]); } });
+      document.addEventListener("keydown", e => { if (e.key === "Escape" && this.sheet && !views.patient.hidden) this.closeSheet(); });
     }
     const reg = await Data.getRegister();
     $("#ps-pick").innerHTML = [...reg].sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.pid}"${c.pid === pid ? " selected" : ""}>${esc(c.name)} · ${c.pid}</option>`).join("");
-    if (pid !== this.pid) { this.pid = pid; this.tab = "today"; }
-    $("#pscreen").innerHTML = `<div class="loading">Opening the app…</div>`;
+    if (pid !== this.pid) { this.pid = pid; this.tab = "today"; this.closeSheet(true); }
+    $("#pscreen").innerHTML = `<div class="loading">…</div>`;
     try { this.P = await Data.getCase(pid); } catch { $("#pscreen").innerHTML = `<div class="loading">We couldn't open ${esc(pid)}. Pick a patient above.</div>`; return; }
+    try { mergeLogs(this.P, await Data.logs(pid)); } catch { mergeLogs(this.P, []); }
     try { this.notes = await Data.notes(pid); } catch { this.notes = []; }
-    $("#ps-name").textContent = this.P.name;
+    $("#ps-name").textContent = this.P.name; $$(".ps-his").forEach(e => { e.textContent = this.P.sex === "F" ? "her" : "his"; });
     $("#ps-back").href = `#/clinic/${pid}`;
     renderNav("patient");
     this.render();
   },
+  go(tab) { this.tab = tab; this.render(); $("#pscreen").scrollTop = 0; if (matchMedia("(max-width: 720px)").matches) window.scrollTo(0, 0); },
   kNow() { return S.day * 288 + S.slot * 3; },
   idx(P) { const k = this.kNow(); let i = -1; for (let j = 0; j < P.pred.k.length; j++) { if (P.pred.k[j] <= k) i = j; else break; } return i; },
+  tm(k) { return fmtT((k % 288) * 5); },
+
+  /* ---------- shell ---------- */
   render() {
     const P = this.P; if (!P) return;
     $$("#ps-days button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.d === S.day));
     $("#ps-slider").value = S.slot; $("#ps-tout").textContent = fmtT(S.slot * 15);
-    const k = this.kNow(), notes = (this.notes || []).filter(n => n.at_k <= k), ack = new Set(store.get(`ack.${this.pid}`, []));
-    const unseen = notes.filter(n => !ack.has(String(n.id))).length;
-    const tabs = [["today", "Today", "M3 12h4l3-8 4 16 3-8h4"], ["advice", "Advice", "M7 4h10l3 3v13H4V4zM8 11h8M8 15h5"], ["week", "Week", "M4 20V10M10 20V4M16 20v-7M22 20H2"], ["data", "My data", "M5 6c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"]];
-    $("#ptabs").innerHTML = tabs.map(([id, t, d]) => `<button data-tab="${id}" aria-current="${this.tab === id}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg><span>${t}</span>${id === "advice" && unseen ? `<i class="badge">${unseen}</i>` : ""}</button>`).join("");
-    const greet = S.slot < 48 ? "Good morning" : S.slot < 68 ? "Good afternoon" : "Good evening";
-    const top = `<header class="papp-h"><div><div class="papp-brand"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M21 9.5a8 8 0 1 0 0 13" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><path d="M25.5 12.5a8.5 8.5 0 0 1 0 7" fill="none" stroke="var(--shadow)" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2 3"/></svg>Chaya</div>
-      <h2>${greet}, ${esc(P.name)}</h2><div class="papp-when">${DAYS_LONG[S.day]} ${14 + S.day} Sep · ${fmtT(S.slot * 15)}</div></div><span class="papp-syn">Synthetic</span></header>`;
-    const body = { today: () => this.today(P, k, notes), advice: () => this.advice(P, notes, ack), week: () => this.week(P, k), data: () => this.data(P, k) }[this.tab]();
-    $("#pscreen").innerHTML = top + body;
+    $("#phone").classList.toggle("hi", this.lang === "hi"); $("#phone").setAttribute("lang", this.lang);
+    const k = this.kNow(), notes = (this.notes || []).filter(n => n.at_k <= k);
+    const unseen = notes.filter(n => !this.isSeen(n)).length;
+    const tabs = [["today", "tToday", ICON.today], ["advice", "tAdvice", ICON.advice], ["log", "tLog", ICON.plus], ["week", "tWeek", ICON.week], ["data", "tData", ICON.data]];
+    $("#ptabs").innerHTML = tabs.map(([id, key, d]) => id === "log"
+      ? `<button data-tab="log" class="ptab-log" aria-label="${this.t("logMeal")}"><span>${svgI(d, 24, 2.4)}</span></button>`
+      : `<button data-tab="${id}" aria-current="${this.tab === id}">${svgI(d, 22)}<span>${this.t(key)}</span>${id === "advice" && unseen ? `<i class="badge">${unseen}</i>` : ""}</button>`).join("");
+    const greet = this.t(S.slot < 48 ? "morning" : S.slot < 68 ? "afternoon" : "evening");
+    const date = this.lang === "hi" ? `${DAYS_HI[S.day]}, ${14 + S.day} सितंबर · ${fmtT(S.slot * 15)}` : `${DAYS_LONG[S.day]} ${14 + S.day} Sep · ${fmtT(S.slot * 15)}`;
+    const head = `<header class="pc-band"><span class="pc-mark"><svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M21 9.5a8 8 0 1 0 0 13" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><path d="M25.5 12.5a8.5 8.5 0 0 1 0 7" fill="none" stroke="#ad94ff" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2 3"/></svg><b>Chaya</b><span lang="hi">छाया</span></span>
+        <div class="pc-lang" role="group" aria-label="Language"><button data-lang="en" aria-pressed="${this.lang === "en"}">EN</button><button data-lang="hi" aria-pressed="${this.lang === "hi"}" lang="hi">हिं</button></div></header>
+      <div class="pc-strip">${this.t("synthetic")}</div>
+      <div class="pc-greet"><h2>${greet}, ${esc(P.name)}</h2><p>${date}</p></div>`;
+    const body = { today: () => this.today(P, k, notes), advice: () => this.advice(P, notes), week: () => this.week(P, k), data: () => this.data(P, k) }[this.tab]();
+    $("#pscreen").innerHTML = head + `<div class="pc-body">${body}</div>`;
     const svg = $("#p-chart"); if (svg) this.chart(P, k, svg);
+    if (this.sheet) this.renderSheet();
   },
-  status(P, i, k) {
-    const thr = this.meta.threshold, cg = P.cgm[k], pr = i >= 0 ? P.pred.prob[i] : null;
-    if (cg != null && cg >= 180) return "high"; if (pr == null || cg == null) return "na";
-    return pr >= thr ? "alert" : pr >= thr * 0.6 ? "watch" : "ok";
+  isSeen(n) { return !!n.ack_at || store.get(`ack.${this.pid}`, []).includes(String(n.id)); },
+  async onClick(e) {
+    const el = e.target.closest("[data-lang],[data-ack],[data-go],[data-go-log],[data-dose],[data-snooze],[data-sheet],[data-dish],[data-when],[data-logsave],[data-sugar],[data-closesheet]");
+    if (!el) return;
+    const d = el.dataset;
+    if (d.lang) { this.lang = d.lang; store.set("plang", this.lang); this.render(); return; }
+    if (d.goLog !== undefined) { this.openSheet("meal"); return; }
+    if (d.go) { this.go(d.go); return; }
+    if (d.closesheet !== undefined) { this.closeSheet(); return; }
+    if (d.sheet) { this.sheet.mode = d.sheet; this.renderSheet(); return; }
+    if (d.dish !== undefined) { this.sheet.dish = +d.dish; this.renderSheet(); return; }
+    if (d.when !== undefined) { this.sheet.ago = +d.when; this.renderSheet(); return; }
+    try {
+      if (d.ack) {
+        const id = isNaN(+d.ack) ? d.ack : +d.ack;
+        try { await Data.ackNote(this.pid, id); } catch { /* keep a local mark */ }
+        const s = new Set(store.get(`ack.${this.pid}`, [])); s.add(String(d.ack)); store.set(`ack.${this.pid}`, [...s]);
+        this.notes = this.notes.map(n => String(n.id) === String(d.ack) ? { ...n, ack_at: n.ack_at || new Date().toISOString() } : n); this.render(); return;
+      }
+      if (d.snooze) { store.set(`snooze.${this.pid}.${d.snooze}`, this.kNow() + 6); this.render(); return; }
+      if (d.dose) { await this.log({ kind: "dose", drug: d.dose, k: this.kNow() }); return; }
+      if (d.sugar !== undefined) { await this.log({ kind: "meal", meal: "Glucose tablets (3)", carbs: 15, gi: 100, k: this.kNow() }); return; }
+      if (d.logsave !== undefined) {
+        const m = this.meta.meal_catalog[this.sheet.dish]; if (!m) return;
+        await this.log({ kind: "meal", meal: m.meal, carbs: m.carbs, gi: m.gi, photo: !!this.sheet.photo, k: Math.max(0, this.kNow() - this.sheet.ago / 5) });
+        this.closeSheet(); return;
+      }
+    } catch (err) { toast(err.message || "Couldn't save that. Try again."); }
+  },
+  async log(body) {
+    const row = await Data.addLog(this.pid, body);
+    mergeLogs(this.P, [...(this.P._logs || []), row]);
+    toast(this.t("saved")); this.render();
+  },
+
+  /* ---------- today ---------- */
+  reading(P, k) {
+    let last = -1; for (let j = k; j >= Math.max(0, k - 12); j--) if (P.cgm[j] != null) { last = j; break; }
+    const g = last >= 0 ? P.cgm[last] : null, prev = last >= 3 ? P.cgm[last - 3] : null, dv = g != null && prev != null ? g - prev : 0;
+    const tr = dv > 15 ? ["upfast", -70] : dv > 5 ? ["up", -35] : dv < -15 ? ["downfast", 70] : dv < -5 ? ["down", 35] : ["flat", 0];
+    const band = g == null ? "na" : g < 70 ? "low" : g > 180 ? "high" : "ok";
+    return { g, tr, band, ago: last >= 0 ? (k - last) * 5 : null };
+  },
+  schedule(P) {
+    // each medicine at the patient's own usual times, learned from their dose history
+    const by = {};
+    P._meds0.forEach(m => { const t = (m.k % 288) * 5; (by[m.drug] = by[m.drug] || []).push(t); });
+    const out = [];
+    Object.entries(by).forEach(([drug, ts]) => {
+      [ts.filter(t => t < 840), ts.filter(t => t >= 840)].forEach(g => { if (g.length >= 3) { g.sort((a, b) => a - b); out.push({ drug, at: Math.round(g[Math.floor(g.length / 2)] / 15) * 15 }); } });
+    });
+    return out.sort((a, b) => a.at - b.at);
+  },
+  medsToday(P, k) {
+    const d0 = S.day * 288, now = (k - d0) * 5;
+    return this.schedule(P).map(s => {
+      const dose = P.meds.find(m => m.drug === s.drug && m.k >= d0 && m.k <= k && Math.abs((m.k - d0) * 5 - s.at) <= 180);
+      const key = `${s.drug}.${S.day}.${s.at}`, snooze = store.get(`snooze.${this.pid}.${key}`, null);
+      let st = dose ? "taken" : now < s.at - 30 ? "later" : now <= s.at + 120 ? "due" : "missed";
+      if (st === "due" && snooze != null && snooze > k) st = "snoozed";
+      return { ...s, st, dose, key, snooze };
+    });
   },
   today(P, k, notes) {
-    const d0 = S.day * 288, i = this.idx(P);
-    let last = -1; for (let j = k; j >= Math.max(0, k - 12); j--) if (P.cgm[j] != null) { last = j; break; }
-    const g = last >= 0 ? P.cgm[last] : null, prev = last >= 3 ? P.cgm[last - 3] : null;
-    const dv = g != null && prev != null ? g - prev : 0;
-    const arrow = dv > 15 ? ["↑", "rising fast"] : dv > 5 ? ["↗", "rising"] : dv < -15 ? ["↓", "falling fast"] : dv < -5 ? ["↘", "falling"] : ["→", "steady"];
-    const band = g == null ? ["na", "No reading"] : g < 70 ? ["low", "Below range"] : g > 180 ? ["high", "Above range"] : ["ok", "In range"];
-    const st = this.status(P, i, k);
-    const fc = i >= 0 && P.pred.k[i] >= d0 ? twinForecast(P, i) : null;
+    const d0 = S.day * 288, i = this.idx(P), r = this.reading(P, k);
+    const fcOk = i >= 0 && k - P.pred.k[i] < 6, fc = fcOk ? twinForecast(P, i) : null;
     const pk = fc ? Math.round(peakOf(fc.fc)) : null, pkAt = fc ? fmtT(((fc.k % 288) * 5 + 5 + (fc.fc.indexOf(peakOf(fc.fc)) + 1) * 5) % 1440) : "";
+    const lo = lowRisk(P, i, k, fc ? fc.fc : null);
+    const pr = i >= 0 ? P.pred.prob[i] : null, thr = Thr.get(this.meta);
+    let state = "ok";
+    if (lo && lo.now) state = "lownow"; else if (r.g != null && r.g > 180) state = "high"; else if (lo) state = "lowsoon"; else if (pr != null && pr >= thr) state = "spike";
     const latest = notes[0];
-    let heads = "";
-    if (st === "alert" || st === "watch") heads = `<div class="pcard heads ${st}"><div class="ph-k">${st === "alert" ? "Heads-up for the next 2 hours" : "Worth a look"}</div>
-      <p>${st === "alert" ? `Your glucose may go above 180 ${pk ? `(about <b>${pk}</b> around ${pkAt})` : "soon"}. Your care team can see this too.` : "Your glucose may rise a little after your next meal."}</p>
-      ${latest ? `<button class="pnote-mini" data-go="advice"><span class="hand">℞ ${esc(latest.summary)}</span><span>Your doctor's latest advice →</span></button>` : `<p class="ph-f">A short walk after eating usually helps. Your doctor may send advice.</p>`}</div>`;
-    else if (st === "high") heads = `<div class="pcard heads alert"><div class="ph-k">Above range now</div><p>Your glucose is above 180. ${latest ? "Your doctor's latest advice is below." : "A short walk usually helps it come down."}</p>${latest ? `<button class="pnote-mini" data-go="advice"><span class="hand">℞ ${esc(latest.summary)}</span><span>Open your advice →</span></button>` : ""}</div>`;
-    else if (st === "ok") heads = `<div class="pcard heads ok"><div class="ph-k">Next 2 hours</div><p>Looking steady${pk ? `, peaking around <b>${pk}</b>` : ""}.</p></div>`;
-    const seg = P.cgm.slice(d0, k + 1).filter(v => v != null), tir = seg.length ? seg.filter(v => v >= 70 && v <= 180).length / seg.length * 100 : null;
-    const steps = P.steps.slice(d0, k + 1).reduce((a, b) => a + b, 0), night = P.nights.find(n => n.day === S.day + 7);
-    const meals = P.meals.filter(m => m.k >= d0 && m.k <= k).sort((a, b) => a.k - b.k), doses = P.meds.filter(m => m.k >= d0 && m.k <= k).sort((a, b) => a.k - b.k);
-    const ago = last >= 0 ? (k - last) * 5 : null;
-    return `<section class="pcard glu"><div class="glu-top"><div><div class="glu-v num">${g == null ? "–" : Math.round(g)}<small>mg/dL</small><span class="arr" title="${arrow[1]}">${arrow[0]}</span></div>
-        <div class="glu-s"><span class="pill2 ${band[0]}">${band[1]}</span><span>${arrow[1]} · ${ago == null ? "sensor gap" : ago ? `${ago} min ago` : "just now"}</span></div></div>
-        <button class="src-mini" data-src="cgm,forecast" aria-label="Where this number comes from">from your sensor</button></div>
-        <svg id="p-chart" role="img" aria-label="Glucose for the last 3 hours and Chaya's forecast for the next 2"></svg>
-        <div class="p-leg"><span><i style="background:var(--ink)"></i>Your glucose</span><span><i class="dash"></i>Chaya's forecast</span><span><i style="background:var(--band);height:8px"></i>Target 70–180</span></div></section>
-      ${heads}
-      <section class="ptiles">
-        <div class="pt"><span class="pt-l">In range today</span><b class="num">${tir == null ? "–" : tir.toFixed(0) + "%"}</b><span class="pt-g">goal 70% or more</span></div>
-        <div class="pt"><span class="pt-l">Steps today</span><b class="num">${steps.toLocaleString("en-IN")}</b><span class="pt-g">from your watch</span></div>
-        <div class="pt"><span class="pt-l">Sleep last night</span><b class="num">${night ? night.sleep_hours.toFixed(1) + " h" : "–"}</b><span class="pt-g">${night ? `bed ${fmtT(night.bedtime * 60)}` : "no data"}</span></div>
-        <div class="pt"><span class="pt-l">Medicines today</span><b class="num">${doses.length}</b><span class="pt-g">${doses.length ? "doses logged" : "none logged yet"}</span></div>
-      </section>
-      <section class="pcard plist"><div class="pl-h">Today so far</div>
-        ${[...meals.map(m => ({ k: m.k, t: m.meal, s: `${m.carbs} g carbs`, c: "meal" })), ...doses.map(m => ({ k: m.k, t: m.drug, s: "taken", c: "dose" }))].sort((a, b) => a.k - b.k)
-          .map(x => `<div class="pl-row"><span class="pl-t num">${fmtT((x.k % 288) * 5)}</span><span class="dot ${x.c}"></span><span class="pl-n">${esc(x.t)}</span><span class="pl-s">${x.s}</span></div>`).join("") || `<p class="pl-empty">Nothing logged yet today.</p>`}
+    const statusWord = { ok: "inRange", high: "above", low: "below", na: "noRead" }[r.band];
+    const statusIcon = { ok: ICON.check, high: "M12 5l7 12H5z", low: "M12 19L5 7h14z", na: "M6 12h12" }[r.band];
+    const now = `<section class="pc-now" aria-labelledby="pc-now-h">
+        <h3 id="pc-now-h" class="sr">${this.t("tToday")}</h3>
+        <div class="pc-read"><span class="pc-val num">${r.g == null ? "–" : Math.round(r.g)}</span><span class="pc-unit">mg/dL</span>
+          <span class="pc-arrow" title="${this.t("tr")[r.tr[0]]}" style="--rot:${r.tr[1]}deg">${svgI("M5 12h13M13 6l6 6-6 6", 26, 2.4)}</span></div>
+        <div class="pc-stat"><span class="pc-pill ${r.band}">${svgI(statusIcon, 14, 2.6)}${this.t(statusWord)}</span><span>${this.t("tr")[r.tr[0]]}</span>
+          <button class="pc-src" data-src="cgm,forecast" data-pid="${P.pid}">${this.t("fromSensor", r.ago)}</button></div>
+        <svg id="p-chart" role="img" aria-label="${this.t("legYou")} · ${this.t("legChaya")}"></svg>
+        <div class="pc-leg"><span><i class="l-ink"></i>${this.t("legYou")}</span><span><i class="l-sh"></i>${this.t("legChaya")}</span><span><i class="l-band"></i>${this.t("legTarget")}</span></div>
+        ${fc && state === "ok" ? `<p class="pc-carbon">${this.t("expect", pk, pkAt)} ${this.t("steady")}</p>` : ""}
       </section>`;
+    let alert = "";
+    if (state === "lownow") alert = `<section class="pc-alert low" role="alert"><div class="pa-h">${svgI("M12 19L5 7h14z", 20, 2.4)}<h3>${this.t("lowNowH")}</h3></div>
+        <ol><li>${this.t("lowNow1")}</li><li>${this.t("lowNow2")}</li><li>${this.t("lowNow3")}</li></ol>
+        <button class="pc-btn" data-sugar>${svgI(ICON.check, 18, 2.4)}${this.t("lowNowB")}</button></section>`;
+    else if (state === "lowsoon") alert = `<section class="pc-alert low soft"><div class="pa-h">${svgI("M12 19L5 7h14z", 20, 2.4)}<h3>${this.t("lowSoonH")}</h3></div><p>${this.t("lowSoon")}</p></section>`;
+    else if (state === "high") alert = `<section class="pc-alert high soft"><div class="pa-h">${svgI("M12 5l7 12H5z", 20, 2.4)}<h3>${this.t("highH")}</h3></div><p>${this.t("high")}</p></section>`;
+    else if (state === "spike") alert = `<section class="pc-alert high soft"><div class="pa-h">${svgI("M12 5l7 12H5z", 20, 2.4)}<h3>${this.t("spikeH")}</h3></div><p>${this.t("spike", pk || "–", pkAt)}</p></section>`;
+    const chit = latest ? `<button class="pc-chit" data-go="advice"><span class="pc-chit-k">${this.t("fromDoc")}</span><span class="pc-chit-t" lang="en">℞ ${esc(latest.summary)}</span><span class="pc-chit-a">${this.t("allAdvice")} ${svgI(ICON.chev, 14, 2.4)}</span></button>` : "";
+    const meds = this.medsToday(P, k);
+    const medRows = meds.map(m => {
+      const lab = { taken: this.t("taken", m.dose ? this.tm(m.dose.k) : ""), due: this.t("due"), missed: this.t("missed"), later: this.t("later", fmtT(m.at)), snoozed: this.t("snoozed", this.tm(m.snooze)) }[m.st];
+      const act = m.st === "due" ? `<div class="pm-acts"><button class="pc-btn sm" data-dose="${esc(m.drug)}">${svgI(ICON.check, 16, 2.6)}${this.t("bTaken")}</button><button class="pc-btn sm quiet" data-snooze="${esc(m.key)}">${this.t("bSnooze")}</button></div>`
+        : m.st === "missed" ? `<div class="pm-acts"><button class="pc-btn sm quiet" data-dose="${esc(m.drug)}">${this.t("bTook")}</button></div>` : "";
+      return `<li class="pm ${m.st}"><span class="pm-t num">${fmtT(m.at)}</span><span class="pm-i">${m.st === "taken" ? svgI(ICON.check, 16, 2.8) : m.st === "due" || m.st === "snoozed" ? svgI(ICON.bell, 16, 2.2) : svgI(ICON.pill, 16, 2)}</span>
+        <span class="pm-n" lang="en">${esc(m.drug)}</span><span class="pm-s">${lab}</span>${act}</li>`;
+    }).join("");
+    const meals = P.meals.filter(m => m.k >= d0 && m.k <= k), doses = P.meds.filter(m => m.k >= d0 && m.k <= k);
+    const items = [...meals.map(m => ({ k: m.k, t: m.meal, s: `${m.carbs} ${this.t("carbs")}`, c: "meal", app: m.app })), ...doses.map(m => ({ k: m.k, t: m.drug, s: this.t("tlTaken"), c: "dose", app: m.app }))].sort((a, b) => a.k - b.k);
+    const seg = P.cgm.slice(d0, k + 1).filter(v => v != null), tir = seg.length ? Math.round(seg.filter(v => v >= 70 && v <= 180).length / seg.length * 100) : null;
+    const steps = P.steps.slice(d0, k + 1).reduce((a, b) => a + b, 0), night = P.nights.find(n => n.day === S.day + 7);
+    const urgent = state === "lownow" || state === "lowsoon";
+    return (urgent ? alert + now : now + alert) + chit +
+      (meds.length ? `<section class="pc-sec"><h3>${this.t("meds")}</h3><ul class="pm-list">${medRows}</ul></section>` : "") +
+      `<section class="pc-sec"><h3>${this.t("today")}</h3>${items.length ? `<ol class="pc-tl">${items.map(x => `<li class="${x.c}"><span class="num">${this.tm(x.k)}</span><i></i><span class="tl-n" lang="en">${esc(x.t)}</span><span class="tl-s">${x.s}${x.app ? ` · ${this.t("inApp")}` : ""}</span></li>`).join("")}</ol>` : `<p class="pc-empty">${this.t("nothing")}</p>`}
+        <button class="pc-btn quiet wide" data-go-log>${svgI(ICON.plus, 18, 2.4)}${this.t("logMeal")}</button></section>
+      <section class="pc-fields"><div><span>${this.t("fRange")}</span><b class="num">${tir == null ? "–" : tir + "%"}</b><small>${this.t("goal")}</small></div>
+        <div><span>${this.t("fSteps")}</span><b class="num">${steps.toLocaleString("en-IN")}</b><small>${this.t("watch")}</small></div>
+        <div><span>${this.t("fSleep")}</span><b class="num">${night ? night.sleep_hours.toFixed(1) + " h" : "–"}</b><small>${night ? this.t("bed", fmtT(night.bedtime * 60)) : ""}</small></div></section>`;
   },
   chart(P, k, el) {
-    const W = el.clientWidth || 330, H = 150, M = { l: 26, r: 6, t: 8, b: 18 };
+    const W = el.clientWidth || 330, H = 164, M = { l: 26, r: 4, t: 10, b: 20 };
     const svg = d3.select(el).attr("viewBox", `0 0 ${W} ${H}`).attr("height", H); svg.selectAll("*").remove();
-    const x = d3.scaleLinear([-36, 24], [M.l, W - M.r]), y = d3.scaleLinear([50, 300], [H - M.b, M.t]).clamp(true);
-    svg.append("rect").attr("x", M.l).attr("width", W - M.l - M.r).attr("y", y(180)).attr("height", y(70) - y(180)).attr("fill", css("--band")).attr("rx", 3);
+    const x = d3.scaleLinear([-36, 24], [M.l, W - M.r]), y = d3.scaleLinear([40, 300], [H - M.b, M.t]).clamp(true);
+    svg.append("rect").attr("x", M.l).attr("width", W - M.l - M.r).attr("y", y(180)).attr("height", y(70) - y(180)).attr("fill", css("--band"));
+    svg.append("rect").attr("x", x(0)).attr("width", W - M.r - x(0)).attr("y", M.t).attr("height", H - M.b - M.t).attr("fill", css("--shadow-soft")).attr("opacity", .35);
     [70, 180].forEach(v => svg.append("text").attr("x", M.l - 4).attr("y", y(v) + 3).attr("text-anchor", "end").text(v));
-    const past = d3.range(-36, 1).map(j => [j, P.cgm[k + j] ?? null]);
-    svg.append("path").attr("d", d3.line().defined(d => d[1] != null).x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX)(past)).attr("fill", "none").attr("stroke", css("--ink")).attr("stroke-width", 2.6).attr("stroke-linecap", "round");
     const i = this.idx(P);
     if (i >= 0 && k - P.pred.k[i] < 6) {
       const f = twinForecast(P, i), off = f.k - k;
       const pts = [[off, f.start], ...f.fc.map((v, j) => [off + j + 1, v])].filter(p => p[0] <= 24);
-      svg.append("path").attr("d", d3.area().x(d => x(d[0])).y0(d => y(d[1] - 18 - (d[0] - off) * .9)).y1(d => y(d[1] + 18 + (d[0] - off) * .9)).curve(d3.curveMonotoneX)(pts)).attr("fill", css("--shadow")).attr("opacity", .13);
-      svg.append("path").attr("d", d3.line().x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX)(pts)).attr("fill", "none").attr("stroke", css("--shadow")).attr("stroke-width", 2.4).attr("stroke-dasharray", "6 4");
+      svg.append("path").attr("d", d3.area().x(d => x(d[0])).y0(d => y(d[1] - 14 - (d[0] - off) * .8)).y1(d => y(d[1] + 14 + (d[0] - off) * .8)).curve(d3.curveMonotoneX)(pts)).attr("fill", css("--shadow")).attr("opacity", .16);
+      svg.append("path").attr("d", d3.line().x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX)(pts)).attr("fill", "none").attr("stroke", css("--shadow")).attr("stroke-width", 2.6).attr("stroke-dasharray", "6 5").attr("stroke-linecap", "round");
     }
-    svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", M.t).attr("y2", H - M.b).attr("stroke", css("--ink-3")).attr("stroke-width", 1);
-    [[-36, "-3 h"], [-12, "-1 h"], [0, "now"], [24, "+2 h"]].forEach(([t, l]) => svg.append("text").attr("x", x(t)).attr("y", H - 4).attr("text-anchor", t === -36 ? "start" : t === 24 ? "end" : "middle").text(l));
+    const past = d3.range(-36, 1).map(j => [j, P.cgm[k + j] ?? null]);
+    svg.append("path").attr("d", d3.line().defined(d => d[1] != null).x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX)(past)).attr("fill", "none").attr("stroke", css("--ink")).attr("stroke-width", 3).attr("stroke-linecap", "round");
+    const g0 = P.cgm[k]; if (g0 != null) svg.append("circle").attr("cx", x(0)).attr("cy", y(g0)).attr("r", 5).attr("fill", css("--ink")).attr("stroke", css("--sheet")).attr("stroke-width", 2.5);
+    P.meals.filter(m => m.k > k - 36 && m.k <= k).forEach(m => svg.append("circle").attr("cx", x(m.k - k)).attr("cy", H - M.b - 6).attr("r", 4).attr("fill", m.app ? css("--sheet") : css("--watch")).attr("stroke", css("--watch")).attr("stroke-width", 2));
+    [[-36, "−3 h"], [-12, "−1 h"], [0, this.lang === "hi" ? "अभी" : "now"], [24, "+2 h"]].forEach(([t, l]) => svg.append("text").attr("x", x(t)).attr("y", H - 4).attr("text-anchor", t === -36 ? "start" : t === 24 ? "end" : "middle").text(l));
   },
-  advice(P, notes, ack) {
-    if (!notes.length) return `<div class="pempty"><div class="hand" style="font-size:2.4rem;line-height:1">℞</div><b>No advice yet</b><p>When your doctor writes advice on the Rx pad, it appears here with what it should do for your glucose.</p></div>`;
-    return `<div class="pl-h" style="padding:0 4px">From your care team</div>` + notes.map(n => {
-      const d = Math.floor(n.at_k / 288), seen = ack.has(String(n.id)), better = n.projected_peak < n.baseline_peak - 2;
-      return `<article class="pnote${seen ? " seen" : ""}"><div class="pn-h"><span>Your care team${n.author && !/^You/.test(n.author) ? ` · ${esc(n.author)}` : ""}</span><span class="num">${DAYS[d]} ${14 + d} Sep, ${fmtT((n.at_k % 288) * 5)}</span></div>
-        <p class="hand pn-t">℞ ${esc(n.summary)}</p>
-        <div class="pn-e"><span>What it should do</span><b>peak about <span class="num ${better ? "good" : ""}">${Math.round(n.projected_peak)}</span> instead of <span class="num">${Math.round(n.baseline_peak)}</span> mg/dL</b><span>${n.projected_minutes_above ? `${n.projected_minutes_above} min above 180` : "staying under 180"}</span></div>
-        ${seen ? `<div class="pn-ok">✓ Seen</div>` : `<button class="btn btn-primary btn-sm" data-ack="${n.id}">Got it</button>`}</article>`;
-    }).join("") + `<p class="pfoot">Advice is written by your doctor and projected by your twin. Talk to your doctor before changing any medicine.</p>`;
+
+  /* ---------- advice ---------- */
+  advice(P, notes) {
+    if (!notes.length) return `<div class="pc-emptybig"><span class="pc-rx" aria-hidden="true">℞</span><h3>${this.t("noAdvice")}</h3><p>${this.t("noAdviceB")}</p></div>`;
+    return `<h3 class="pc-h3">${this.t("careTeam")}</h3>` + notes.map(n => {
+      const d = Math.floor(n.at_k / 288), seen = this.isSeen(n), a = Math.round(n.projected_peak), b = Math.round(n.baseline_peak), mx = Math.max(a, b, 200);
+      return `<article class="pc-note${seen ? " seen" : ""}"><div class="pn-top"><span>${n.author && !/^You/.test(n.author) ? esc(n.author) : this.t("careTeam")}</span><span class="num">${DAYS[d]} ${14 + d} Sep · ${this.tm(n.at_k)}</span></div>
+        <p class="pn-rx" lang="en">℞ ${esc(n.summary)}</p>
+        <div class="pn-what"><span class="pn-k">${this.t("should")}</span><p>${this.t("peakVs", a, b)}</p>
+          <div class="pn-bars" aria-hidden="true"><i class="was" style="width:${b / mx * 100}%"></i><i class="now ${a > 180 ? "hi" : ""}" style="width:${a / mx * 100}%"></i><span style="left:${180 / mx * 100}%"></span></div>
+          <small>${this.t("minAbove", n.projected_minutes_above)}</small></div>
+        ${seen ? `<p class="pn-seen">${svgI(ICON.check, 16, 2.8)}${this.t("seen")}</p>` : `<button class="pc-btn" data-ack="${n.id}">${svgI(ICON.check, 18, 2.6)}${this.t("gotIt")}</button>`}</article>`;
+    }).join("") + `<p class="pc-foot">${this.t("adviceFoot")}</p>`;
   },
+
+  /* ---------- week ---------- */
   week(P, k) {
     const rows = DAYS.map((dn, d) => {
       const hi = Math.min(k, d * 288 + 287), seg = d * 288 <= k ? P.cgm.slice(d * 288, hi + 1).filter(v => v != null) : [];
       const tir = seg.length ? seg.filter(v => v >= 70 && v <= 180).length / seg.length * 100 : null;
       const n = P.nights.find(x => x.day === d + 7), st = d * 288 <= k ? P.steps.slice(d * 288, hi + 1).reduce((a, b) => a + b, 0) : null;
-      return { dn: `${dn} ${14 + d}`, tir, sleep: d <= S.day && n ? n.sleep_hours : null, st, today: d === S.day };
+      return { dn: this.lang === "hi" ? DAYS_HI_S[d] : dn, dd: 14 + d, tir, sleep: d <= S.day && n ? n.sleep_hours : null, st, today: d === S.day };
     });
     const all = P.cgm.slice(0, k + 1).filter(v => v != null), mean = all.reduce((a, b) => a + b, 0) / Math.max(all.length, 1);
-    const tirW = all.filter(v => v >= 70 && v <= 180).length / Math.max(all.length, 1) * 100, gmi = 3.31 + 0.02392 * mean;
-    return `<section class="ptiles"><div class="pt"><span class="pt-l">In range this week</span><b class="num">${tirW.toFixed(0)}%</b><span class="pt-g">goal 70% or more</span></div>
-        <div class="pt"><span class="pt-l">Average glucose</span><b class="num">${Math.round(mean)}</b><span class="pt-g">mg/dL</span></div>
-        <div class="pt"><span class="pt-l">Estimated A1c (GMI)</span><b class="num">${gmi.toFixed(1)}%</b><span class="pt-g">last lab ${P.ehr.hba1c_pct.toFixed(1)}%</span></div>
-        <div class="pt"><span class="pt-l">Warnings this week</span><b class="num">${P.pred.start.filter((s, j) => s && P.pred.k[j] <= k).length}</b><span class="pt-g">also sent to your doctor</span></div></section>
-      <section class="pcard"><div class="pl-h">Time in range, day by day</div><div class="wbars">${rows.map(r => `<div class="wb${r.today ? " today" : ""}"><div class="wb-bar"><i style="height:${r.tir == null ? 0 : r.tir}%" class="${r.tir != null && r.tir < 70 ? "low" : ""}"></i></div><b class="num">${r.tir == null ? "–" : r.tir.toFixed(0)}</b><span>${r.dn.split(" ")[0]}</span></div>`).join("")}</div></section>
-      <section class="pcard plist"><div class="pl-h">Sleep and steps</div>${rows.map(r => `<div class="pl-row"><span class="pl-t">${r.dn}</span><span class="pl-n num">${r.sleep == null ? "–" : r.sleep.toFixed(1) + " h sleep"}</span><span class="pl-s num">${r.st == null ? "–" : r.st.toLocaleString("en-IN") + " steps"}</span></div>`).join("")}</section>`;
+    const tirW = Math.round(all.filter(v => v >= 70 && v <= 180).length / Math.max(all.length, 1) * 100), gmi = 3.31 + 0.02392 * mean;
+    const warns = P.pred.start.filter((s, j) => s && P.pred.k[j] <= k).length;
+    return `<section class="pc-weekh"><h3 class="${tirW >= 70 ? "good" : "low"}">${this.t("weekH", tirW)}</h3><p>${this.t("weekGoal")}</p></section>
+      <section class="pc-sec"><h3>${this.t("byDay")}</h3><div class="wk">${rows.map(r => `<div class="wk-d${r.today ? " today" : ""}"><div class="wk-bar"><span class="wk-goal"></span><i style="height:${r.tir == null ? 0 : r.tir}%" class="${r.tir != null && r.tir < 70 ? "low" : ""}"></i></div><b class="num">${r.tir == null ? "–" : Math.round(r.tir)}</b><span>${r.dn}</span></div>`).join("")}</div></section>
+      <section class="pc-fields"><div><span>${this.t("avg")}</span><b class="num">${Math.round(mean)}</b><small>mg/dL</small></div>
+        <div><span>${this.t("a1c")}</span><b class="num">${gmi.toFixed(1)}%</b><small>${this.t("lastLab", P.ehr.hba1c_pct.toFixed(1))}</small></div>
+        <div><span>${this.t("warns")}</span><b class="num">${warns}</b><small>${this.t("warnsS")}</small></div></section>
+      <section class="pc-sec"><h3>${this.t("sleepSteps")}</h3><ul class="pc-rows">${rows.map(r => `<li><span>${r.dn} ${r.dd}</span><span class="num">${r.sleep == null ? "–" : r.sleep.toFixed(1)} <small>${this.t("hSleep")}</small></span><span class="num">${r.st == null ? "–" : r.st.toLocaleString("en-IN")} <small>${this.t("steps")}</small></span></li>`).join("")}</ul></section>`;
   },
+
+  /* ---------- my data ---------- */
   data(P, k) {
-    const c = Sources.completeness(P), t = kk => kk < 0 ? "—" : `${DAYS[Math.floor(kk / 288)]} ${fmtT((kk % 288) * 5)}`;
-    const lastOf = arr => arr.filter(m => m.k <= k).reduce((a, m) => Math.max(a, m.k), -1);
-    const e = P.ehr;
+    const c = Sources.completeness(P), t = kk => kk < 0 ? "—" : `${DAYS[Math.floor(kk / 288)]} ${this.tm(kk)}`;
+    const lastOf = arr => arr.filter(m => m.k <= k).reduce((a, m) => Math.max(a, m.k), -1), e = P.ehr;
     const devs = [
-      ["Glucose sensor (CGM)", "Reads every 5 minutes", `Last reading ${t(c.last)} · ${c.cov.toFixed(0)}% of the week covered`, "cgm", "M12 3a9 9 0 1 0 .01 0M12 8v4l3 2"],
-      ["Smartwatch", "Steps, heart rate, sleep and HRV", `Synced ${t(k)} · ${c.nights} nights recorded`, "steps,hr,hrv,sleep", "M8 3h8l1 4H7zM7 17h10l-1 4H8zM6 7h12v10H6z"],
-      ["Meal log", "What you tap in", `${c.meals} meals logged · last ${t(lastOf(P.meals))}`, "meals,unlogged", "M7 4h10l3 3v13H4V4zM8 11h8M8 15h5"],
-      ["Medicine log", "Doses you mark as taken", `${c.doses} doses · last ${t(lastOf(P.meds))}`, "meds", "M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7zM7 10l7 7"],
-      ["Health record", "Linked to your ABHA number", `HbA1c ${e.hba1c_pct}% · fasting ${e.fasting_glucose_mgdl} mg/dL · from your clinic`, "ehr,hba1c,fpg,body,bp,lipids,kidney", "M8 4h8l4 4v12H4V4zM9 13h6M12 10v6"],
+      ["dCgm", "dCgmS", `${this.t("last", t(c.last))} · ${this.t("cover", c.cov.toFixed(0))}`, "cgm", ICON.cgm],
+      ["dWatch", "dWatchS", `${this.t("last", t(k))} · ${this.t("nights", c.nights)}`, "steps,hr,hrv,sleep", ICON.watch],
+      ["dMeal", "dMealS", `${this.t("mealsN", c.meals)} · ${this.t("last", t(lastOf(P.meals)))}`, "meals,unlogged", ICON.meal],
+      ["dMed", "dMedS", `${this.t("dosesN", c.doses)} · ${this.t("last", t(lastOf(P.meds)))}`, "meds", ICON.pill],
+      ["dEhr", "dEhrS", `HbA1c ${e.hba1c_pct}% · FPG ${e.fasting_glucose_mgdl} mg/dL`, "ehr,hba1c,fpg,body,bp,lipids,kidney", ICON.ehr],
     ];
-    return `<p class="pintro">Chaya combines these sources into your twin. Tap one to see exactly what it sends and why.</p>` +
-      devs.map(([n, s, st, ids, d]) => `<button class="pdev" data-src="${ids}" data-pid="${P.pid}"><span class="pd-i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg></span>
-        <span class="pd-t"><b>${n}</b><span>${s}</span><span class="pd-st"><i></i>${st}</span></span><span class="pd-c" aria-hidden="true">›</span></button>`).join("") +
-      `<p class="pfoot">Everything in this demo is synthetic. In the full app, you choose what to share and can withdraw consent at any time through ABDM.</p>`;
+    return `<p class="pc-intro">${this.t("dataIntro")}</p><ul class="pc-devs">` + devs.map(([n, s, st, ids, d]) => `<li><button data-src="${ids}" data-pid="${P.pid}"><span class="pd-i">${svgI(d, 22, 1.8)}</span>
+        <span class="pd-t"><b>${this.t(n)}</b><span>${this.t(s)}</span><span class="pd-st"><i></i>${st}</span></span>${svgI(ICON.chev, 18, 2.2)}</button></li>`).join("") +
+      `</ul><p class="pc-foot">${this.t("dataFoot")}</p>`;
+  },
+
+  /* ---------- log sheet ---------- */
+  openSheet(mode) {
+    const slot = S.slot < 44 ? "breakfast" : S.slot < 64 ? "lunch" : S.slot < 76 ? "snack" : "dinner";
+    this.sheet = { mode, dish: -1, ago: 0, q: "", photo: null, slot };
+    $("#psheet").hidden = false; $("#phone").classList.add("sheet-on");
+    this.renderSheet(); setTimeout(() => { const f = $("#psheet [data-closesheet]"); if (f) f.focus(); }, 30);
+  },
+  closeSheet(silent) { this.sheet = null; const s = $("#psheet"); if (s) { s.hidden = true; s.innerHTML = ""; } $("#phone").classList.remove("sheet-on"); },
+  renderSheet(listOnly) {
+    const sh = this.sheet, P = this.P, cat = this.meta.meal_catalog; if (!sh) return;
+    const usual = Object.entries(P._meals0.reduce((a, m) => { a[m.meal] = (a[m.meal] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([m]) => cat.findIndex(c => c.meal === m)).filter(j => j >= 0);
+    const q = sh.q.trim().toLowerCase(), list = cat.map((m, j) => ({ ...m, j })).filter(m => !q || m.meal.toLowerCase().includes(q));
+    const listHtml = list.map(m => `<li><button data-dish="${m.j}" aria-pressed="${sh.dish === m.j}"><span lang="en">${esc(m.meal)}</span><span class="num">${m.carbs} g · GI ${m.gi}</span></button></li>`).join("") || `<li class="pc-empty">No dish matches “${esc(sh.q)}”.</li>`;
+    if (listOnly && $("#ps-list")) { $("#ps-list").innerHTML = listHtml; return; }
+    let preview = `<p class="ps-hint">${this.t("pick")}</p>`;
+    if (sh.dish >= 0) {
+      const i = this.idx(P), m = cat[sh.dish];
+      if (i >= 0) {
+        const a = simulate(P, i, { meal: m, when: 0, walk: 0, met: 1, sleep: 7, metTouched: false, sleepTouched: false });
+        const w = simulate(P, i, { meal: m, when: 0, walk: 15, met: 1, sleep: 7, metTouched: false, sleepTouched: false });
+        const pk = Math.round(peakOf(a.scen)), at = fmtT((a.sm + (a.scen.indexOf(peakOf(a.scen)) + 1) * 5) % 1440), wk = Math.round(peakOf(w.scen));
+        preview = `<div class="ps-prev"><span class="pn-k">${this.t("will")}</span><p class="${pk > 180 ? "hi" : ""}">${this.t("peakAt", pk, at)}</p><p class="ps-walk">${this.t("withWalk", wk)}</p></div>`;
+      }
+    }
+    $("#psheet").innerHTML = `<div class="ps-scrim" data-closesheet></div><div class="ps-panel" role="dialog" aria-modal="true" aria-labelledby="ps-h">
+      <div class="ps-grab" aria-hidden="true"></div>
+      <div class="ps-head"><h3 id="ps-h">${this.t("sheetH")}</h3><div class="ps-seg" role="group"><button data-sheet="meal" aria-pressed="${sh.mode === "meal"}">${this.t("meal")}</button><button data-sheet="dose" aria-pressed="${sh.mode === "dose"}">${this.t("medicine")}</button></div>
+        <button class="ps-x" data-closesheet aria-label="${this.t("close")}">${svgI(ICON.close, 18, 2.4)}</button></div>
+      ${sh.mode === "meal" ? `<div class="ps-body">
+        <div class="ps-row"><span class="ps-l">${this.t("when")}</span><div class="ps-chips">${[0, 15, 30, 60].map(v => `<button data-when="${v}" aria-pressed="${sh.ago === v}">${v ? this.t("ago", v) : this.t("now")}</button>`).join("")}</div></div>
+        <label class="ps-photo${sh.photo ? " on" : ""}">${sh.photo ? `<img src="${sh.photo}" alt="">` : svgI(ICON.camera, 20, 1.9)}<span>${sh.photo ? this.t("photoOn") : this.t("photo")}</span><input id="ps-photo" type="file" accept="image/*" capture="environment"></label>
+        ${usual.length ? `<div class="ps-row"><span class="ps-l">${this.t("usual")}</span><div class="ps-chips">${usual.map(j => `<button data-dish="${j}" aria-pressed="${sh.dish === j}" lang="en">${esc(cat[j].meal)}</button>`).join("")}</div></div>` : ""}
+        <input id="ps-search" class="ps-search" type="search" placeholder="${this.t("search")}" value="${esc(sh.q)}" autocomplete="off">
+        <ul class="ps-list" id="ps-list">${listHtml}</ul>
+        ${preview}
+        <button class="pc-btn wide" data-logsave ${sh.dish >= 0 ? "" : "disabled"}>${this.t("save")}</button></div>`
+      : `<div class="ps-body"><p class="ps-l">${this.t("doseH")}</p><ul class="ps-doses">${[...new Set(this.schedule(P).map(s => s.drug))].map(dr => `<li><span lang="en">${esc(dr)}</span><button class="pc-btn sm" data-dose="${esc(dr)}">${svgI(ICON.check, 16, 2.6)}${this.t("takenNow")}</button></li>`).join("") || `<li class="pc-empty">No medicines to track.</li>`}</ul></div>`}
+    </div>`;
+    const se = $("#ps-search"); if (se && document.activeElement && document.activeElement.id === "ps-search") se.focus();
   },
 };
+const DAYS_HI = ["सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "रविवार"], DAYS_HI_S = ["सोम", "मंगल", "बुध", "गुरु", "शुक्र", "शनि", "रवि"];
 
+// ================================================================== clinic outcomes
+const Outcomes = {
+  async render() {
+    const meta = await Data.getMeta(), reg = await Data.getRegister();
+    let out; try { out = await Data.outcomesStatic(); } catch { $("#outc-body").innerHTML = `<p class="empty">The outcome tables could not be loaded. Reload the page to try again.</p>`; return; }
+    const loop = await Data.outcomesLive().catch(() => null);
+    const thr = Thr.get(meta), key = Object.keys(out.patients[reg[0].pid].alerts_by_t).reduce((b, t) => Math.abs(+t - thr) < Math.abs(+b - thr) ? t : b);
+    const cur = out.curve.reduce((b, p) => Math.abs(p.t - thr) < Math.abs(b.t - thr) ? p : b, out.curve[0]);
+    const rows = reg.map(c => { const o = out.patients[c.pid], l = loop && loop.by_patient[c.pid] || {};
+      return { ...c, o, warn: o.alerts_by_t[key], lows: o.lows, lowf: o.low_flags, tbr: o.tbr, hypo: o.hypo_med, open: l.open || 0, esc: l.escalations || 0, notes: l.notes || 0, acked: l.acked || 0, reviews: l.reviews || 0 }; });
+    const n = rows.length, goal = rows.filter(r => r.tir >= 70).length, warn = rows.reduce((a, r) => a + r.warn, 0);
+    const med = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+    const hypo = rows.filter(r => r.hypo), lowsAll = rows.reduce((a, r) => a + r.lows, 0);
+    $("#outc-lede").innerHTML = `<b class="num">${goal}</b> of ${n} patients met the 70% time-in-range goal this week. Median time in range was <b class="num">${med(rows.map(r => r.tir))}%</b>; Chaya raised <b class="num">${warn.toLocaleString("en-IN")}</b> spike warnings at the current threshold.`;
+    const L = loop || { reviews: 0, notes: 0, notes_acknowledged: 0, escalations: { total: 0, contacted: 0, resolved: 0, open: 0, median_minutes_to_contact: null }, patient_logs: { meals: 0, doses: 0 } };
+    const steps = [["Warnings raised", warn, "spike warnings this week, at the current threshold"], ["Reviewed", L.reviews, "marked reviewed by a clinician"], ["Escalated", L.escalations.total, "given an owner and a deadline"],
+      ["Patient contacted", L.escalations.contacted + L.escalations.resolved, L.escalations.median_minutes_to_contact != null ? `median ${L.escalations.median_minutes_to_contact} min to contact` : "by WhatsApp or call"],
+      ["Advice sent", L.notes, "saved on the Rx pad and sent to the app"], ["Seen by patient", L.notes_acknowledged, "patient tapped Got it"]];
+    const days = DAYS.map((d, j) => ({ d: `${d} ${14 + j}`, v: rows.map(r => r.o.daily[j]).filter(v => v != null) }));
+    const W = 560, H = 210, M = { l: 34, r: 10, t: 12, b: 26 }, x = j => M.l + (W - M.l - M.r) * (j + .5) / 7, y = v => M.t + (H - M.t - M.b) * (1 - v / 100);
+    const strip = days.map((dd, j) => dd.v.map((v, q) => `<circle cx="${(x(j) + ((q * 37) % 23 - 11)).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.6" fill="${v >= 70 ? "var(--ok)" : "var(--alert)"}" opacity=".55"/>`).join("") +
+      `<line x1="${x(j) - 16}" x2="${x(j) + 16}" y1="${y(med(dd.v))}" y2="${y(med(dd.v))}" stroke="var(--ink)" stroke-width="2.5"/><text x="${x(j)}" y="${H - 8}" text-anchor="middle">${dd.d}</text>`).join("");
+    const sorted = [...rows].sort((a, b) => a.tir - b.tir), bw = (W - M.l - M.r) / n;
+    const bars = sorted.map((r, j) => `<rect x="${(M.l + j * bw + 1).toFixed(1)}" y="${y(r.tir).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${(y(0) - y(r.tir)).toFixed(1)}" fill="${r.tir >= 70 ? "var(--ok)" : "var(--alert)"}" opacity=".8"><title>${r.name} · ${r.tir}%</title></rect>`).join("");
+    const grid = [0, 50, 70, 100].map(v => `<line x1="${M.l}" x2="${W - M.r}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 70 ? "var(--ink-3)" : "var(--edge)"}" stroke-dasharray="${v === 70 ? "4 3" : ""}"/><text x="${M.l - 6}" y="${y(v) + 3}" text-anchor="end">${v}%</text>`).join("");
+    const tbl = [...rows].sort((a, b) => b.open - a.open || (b.hypo && b.lows + b.lowf) - (a.hypo && a.lows + a.lowf) || a.tir - b.tir);
+    $("#outc-body").innerHTML = `
+      <section class="oblock"><h2>From warning to action</h2>
+        <ol class="funnel">${steps.map(([t, v, sub], j) => `<li><span class="fn-v num">${v.toLocaleString("en-IN")}</span><b>${t}</b><span class="fn-s">${sub}</span></li>`).join("")}</ol>
+        <p class="ofoot">${loop && Data.live ? "Counts after Warnings raised come live from the clinic database." : "Offline demo: counts after Warnings raised are what you did in this browser."} Patients also logged ${L.patient_logs.meals} meals and ${L.patient_logs.doses} doses in the app.</p></section>
+      <div class="ogrid">
+        <section class="oblock"><h2>Time in range, day by day</h2><p class="osub">Each dot is a patient; the bar is the panel median. Dashed line: the 70% goal.</p>
+          <svg viewBox="0 0 ${W} ${H}" class="osvg" role="img" aria-label="Daily time in range for every patient">${grid}${strip}</svg></section>
+        <section class="oblock"><h2>Every patient, lowest first</h2><p class="osub">${goal} of ${n} meet the goal. Hover a bar for the name.</p>
+          <svg viewBox="0 0 ${W} ${H}" class="osvg" role="img" aria-label="Time in range for each patient, sorted">${grid}${bars}</svg></section>
+      </div>
+      <div class="ogrid">
+        <section class="oblock"><h2>Low-glucose safety</h2>
+          <p class="olead"><b class="num">${hypo.length}</b> patients take a sulfonylurea or insulin. The panel had <b class="num">${lowsAll}</b> drops below 70 this week. The twin warned <b class="num">${out.low.caught} of ${out.low.onsets}</b> ahead of time, a median <b class="num">${out.low.median_lead_min} min</b> early, at about ${Math.round(out.low.flags_per_patient_day * 7 * 10) / 10} low warnings per patient a week.</p>
+          <ul class="olist">${hypo.sort((a, b) => (b.lows + b.lowf) - (a.lows + a.lowf)).slice(0, 6).map(r => `<li><a href="#/clinic/${r.pid}">${esc(r.name)}</a><span class="num">${r.tbr}% below 70</span><span>${r.lows} lows · ${r.lowf} warned</span></li>`).join("")}</ul>
+          <p class="ofoot">Small sample: 10 low episodes in 45 synthetic patients. Validation on real CGM data comes first.</p></section>
+        <section class="oblock"><h2>Alert load</h2>
+          <p class="olead">At the current threshold Chaya sends <b class="num">${cur.alerts_per_patient_day.toFixed(1)}</b> spike warnings per patient a day and warns about <b class="num">${Math.round(cur.onsets_warned * 100)}%</b> of spikes within two hours.</p>
+          <div class="oload">${out.curve.filter(p => [.25, .45, .65, .85, .95].includes(p.t)).map(p => `<div class="${Math.abs(p.t - cur.t) < .03 ? "on" : ""}"><span class="num">${Math.round(p.t * 100)}%</span><b class="num">${p.alerts_per_patient_day.toFixed(1)}</b><span>${Math.round(p.onsets_warned * 100)}% caught</span></div>`).join("")}</div>
+          <p class="ofoot">Change it from <a href="#/clinic">Alerts</a> in the clinic bar. Merged warnings count once.</p></section>
+      </div>
+      <section class="oblock"><h2>Patients</h2><p class="osub">Open escalations first, then low-glucose risk, then lowest time in range. Select a name to open the case.</p>
+        <div class="table-scroll"><table class="otable"><thead><tr><th>Patient</th><th>In range</th><th>Below 70</th><th>Spike warnings</th><th>Lows · low warnings</th><th>Escalations</th><th>Advice sent · seen</th></tr></thead>
+        <tbody>${tbl.map(r => `<tr><td><a href="#/clinic/${r.pid}">${esc(r.name)}</a><span class="ot-m">${r.pid}${r.hypo ? " · SU/insulin" : ""}</span></td><td class="num ${r.tir < 70 ? "bad" : ""}">${r.tir}%</td><td class="num">${r.tbr}%</td><td class="num">${r.warn}</td><td class="num">${r.lows} · ${r.lowf}</td><td class="num">${r.open ? `<span class="rf open">${r.open} open</span>` : r.esc || "–"}</td><td class="num">${r.notes ? `${r.notes} · ${r.acked}` : "–"}</td></tr>`).join("")}</tbody></table></div></section>`;
+  },
+};
 // ================================================================== boot
 (async function boot() {
   setupHelp(); Glossary.init(); Sources.init();

@@ -52,6 +52,28 @@ module.exports = async (req, res) => {
       out.database = "Supabase PostgreSQL";
       return send(res, 200, out);
     }
+    if (parts[0] === "outcomes") {
+      const [notes, reviews, esc, logs] = await Promise.all([
+        sb("case_notes?select=id,pid,at_k,ack_at,created_at"), sb("alert_reviews?select=pid,k"),
+        sb("escalations?select=id,pid,kind,status,channel,created_at,updated_at"), sb("patient_logs?select=id,pid,kind,created_at")]);
+      const mins = esc.filter(e => e.status !== "open").map(e => (new Date(e.updated_at) - new Date(e.created_at)) / 60000).sort((x, y) => x - y);
+      return send(res, 200, { notes: notes.length, notes_acknowledged: notes.filter(n => n.ack_at).length, reviews: reviews.length,
+        escalations: { total: esc.length, open: esc.filter(e => e.status === "open").length, contacted: esc.filter(e => e.status === "contacted").length, resolved: esc.filter(e => e.status === "resolved").length,
+          low: esc.filter(e => e.kind === "low").length, median_minutes_to_contact: mins.length ? Math.round(mins[Math.floor(mins.length / 2)]) : null },
+        patient_logs: { meals: logs.filter(l => l.kind === "meal").length, doses: logs.filter(l => l.kind === "dose").length },
+        by_patient: Object.fromEntries([...new Set([...notes, ...esc, ...reviews].map(x => x.pid))].map(pid => [pid, {
+          notes: notes.filter(n => n.pid === pid).length, acked: notes.filter(n => n.pid === pid && n.ack_at).length,
+          reviews: reviews.filter(r => r.pid === pid).length, open: esc.filter(e => e.pid === pid && e.status === "open").length, escalations: esc.filter(e => e.pid === pid).length }])) });
+    }
+    if (parts[0] === "escalations" && parts.length === 2 && (m === "PATCH" || m === "POST")) {
+      const id = Number(parts[1]); if (!Number.isInteger(id)) return send(res, 404, { detail: "Not found." });
+      const bd = await readBody(req), patch = { updated_at: new Date().toISOString() };
+      if (bd.status) { if (!["open", "contacted", "resolved"].includes(bd.status)) return send(res, 422, { detail: "Status must be open, contacted or resolved." }); patch.status = bd.status; }
+      if (bd.channel) { if (!["whatsapp", "call", "app"].includes(bd.channel)) return send(res, 422, { detail: "Channel must be whatsapp, call or app." }); patch.channel = bd.channel; }
+      if (bd.outcome != null) patch.outcome = String(bd.outcome).slice(0, 280);
+      const [row] = await sb(`escalations?id=eq.${id}`, { method: "PATCH", prefer: "return=representation", body: patch });
+      return row ? send(res, 200, row) : send(res, 404, { detail: "No escalation with that ID." });
+    }
     if (parts[0] !== "patients") return send(res, 404, { detail: "Not found." });
 
     if (parts.length === 1) return send(res, 200, await sb("patients?select=*&order=alerts.desc,tir.asc"));
@@ -81,6 +103,37 @@ module.exports = async (req, res) => {
     }
     if (parts[2] === "notes" && parts.length === 4 && m === "DELETE") {
       await sb(`case_notes?pid=eq.${pid}&id=eq.${Number(parts[3])}`, { method: "DELETE" });
+      return send(res, 204);
+    }
+    if (parts[2] === "notes" && parts.length === 5 && parts[4] === "ack" && m === "POST") {
+      const [row] = await sb(`case_notes?pid=eq.${pid}&id=eq.${Number(parts[3])}`, { method: "PATCH", prefer: "return=representation", body: { ack_at: new Date().toISOString() } });
+      return row ? send(res, 200, row) : send(res, 404, { detail: "No note with that ID." });
+    }
+    if (parts[2] === "escalations" && parts.length === 3 && m === "GET") return send(res, 200, await sb(`escalations?pid=eq.${pid}&select=*&order=created_at.desc`));
+    if (parts[2] === "escalations" && parts.length === 3 && m === "POST") {
+      const bd = await readBody(req), k = Math.round(Number(bd.k));
+      if (!Number.isFinite(k) || k < 0 || k > 2015) return send(res, 422, { detail: "The warning time is missing." });
+      const owner = String(bd.owner || "").trim();
+      if (owner.length < 2 || owner.length > 64) return send(res, 422, { detail: "Name who owns this warning (2 to 64 characters)." });
+      const kind = bd.kind === "low" ? "low" : "spike";
+      const [row] = await sb("escalations", { method: "POST", prefer: "return=representation", body: { pid, k, kind, owner, due_k: Math.min(2100, Math.max(k, Math.round(Number(bd.due_k) || k + 6))), status: "open" } });
+      return send(res, 201, row);
+    }
+    if (parts[2] === "logs" && parts.length === 3 && m === "GET") return send(res, 200, await sb(`patient_logs?pid=eq.${pid}&select=*&order=k.asc`));
+    if (parts[2] === "logs" && parts.length === 3 && m === "POST") {
+      const bd = await readBody(req), k = Math.round(Number(bd.k));
+      if (!Number.isFinite(k) || k < 0 || k > 2015) return send(res, 422, { detail: "The time of the log is missing." });
+      const kind = bd.kind === "dose" ? "dose" : "meal", num = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(Number(v) || 0)));
+      const body = kind === "meal"
+        ? { pid, k, kind, meal: String(bd.meal || "").slice(0, 80), carbs: num(bd.carbs, 0, 300), gi: num(bd.gi, 0, 110), photo: !!bd.photo }
+        : { pid, k, kind, drug: String(bd.drug || "").slice(0, 80) };
+      if (kind === "meal" && !body.meal) return send(res, 422, { detail: "Pick a dish before saving." });
+      if (kind === "dose" && !body.drug) return send(res, 422, { detail: "Pick the medicine before saving." });
+      const [row] = await sb("patient_logs", { method: "POST", prefer: "return=representation", body });
+      return send(res, 201, row);
+    }
+    if (parts[2] === "logs" && parts.length === 4 && m === "DELETE") {
+      await sb(`patient_logs?pid=eq.${pid}&id=eq.${Number(parts[3])}`, { method: "DELETE" });
       return send(res, 204);
     }
     if (parts[2] === "alerts" && parts[4] === "review" && m === "POST") {

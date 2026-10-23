@@ -97,10 +97,10 @@
   <section class="section gutter" id="sources" aria-labelledby="h-sources">
     <div class="wrap">
       <h2 id="h-sources">Every number has a source you can name.</h2>
-      <p class="intro">Chaya monitors 23 parameters from four places. Each one carries its device or record, its standard code and how often it arrives. In this prototype every value is synthetic; the right-hand column says where it would come from in a clinic.</p>
+      <p class="intro">Chaya monitors 25 parameters from four places. Each one carries its device or record, its standard code and how often it arrives. In this prototype every value is synthetic; the right-hand column says where it would come from in a clinic.</p>
       <div class="streams" id="home-streams"></div>
       <div style="margin-top:var(--sp-5);display:flex;flex-wrap:wrap;gap:12px">
-        <a class="btn btn-primary" href="#/data">See all 23 parameters</a>
+        <a class="btn btn-primary" href="#/data">See all 25 parameters</a>
         <a class="btn btn-quiet" href="#/patient/GT-1102">See what the patient sees</a>
       </div>
     </div>
@@ -182,6 +182,10 @@
         <button class="btn btn-quiet btn-sm" id="play" aria-pressed="false">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path id="play-ico" d="M7 4l13 8-13 8z"/></svg><span id="play-t">Replay</span></button>
       </div>
+      <div class="menu" id="thr-menu">
+        <button class="btn btn-quiet btn-sm" id="thr-btn" aria-haspopup="true" aria-expanded="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Alerts: <span id="thr-t">Balanced</span></button>
+        <div class="menu-pop thr-pop" id="thr-pop" hidden role="dialog" aria-label="Alert threshold"><div class="thr-h"><b>Spike alert threshold</b></div><div id="thr-body"></div></div>
+      </div>
       <span class="hint">Replaying synthetic week · Mon 14 to Sun 20 Sep 2026</span>
     </div>
   </div>
@@ -193,7 +197,7 @@
         <label class="sr" for="search">Search patients</label>
         <input id="search" type="search" placeholder="Search name, city or ID" autocomplete="off">
         <label class="sr" for="sort">Sort patients</label>
-        <select id="sort"><option value="alerts">Most spike alerts this week</option><option value="tir">Lowest time in range</option><option value="a1c">Highest HbA1c</option><option value="name">Name</option></select>
+        <select id="sort"><option value="alerts">Most spike alerts this week</option><option value="tir">Lowest time in range</option><option value="a1c">Highest HbA1c</option><option value="low">Low-glucose risk</option><option value="name">Name</option></select>
       </div>
       <div class="rlist" id="rlist" role="list"></div>
     </aside>
@@ -210,7 +214,9 @@
           <span><i class="sw" style="border-color:var(--replay)"></i>What happened next</span>
           <span><i class="sw" style="border-top:8px solid var(--band);width:14px"></i>Target 70–180 mg/dL</span>
           <span><svg width="10" height="10" aria-hidden="true"><path d="M5 1 9 9H1z" fill="var(--alert)"/></svg>Spike warning</span>
+          <span><svg width="10" height="10" aria-hidden="true"><path d="M5 9 9 1H1z" fill="var(--low)"/></svg>Low-glucose warning</span>
           <span><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill="var(--watch)"/></svg>Logged meal</span>
+          <span><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="3.4" fill="var(--sheet)" stroke="var(--watch)" stroke-width="1.8"/></svg>Logged in the patient app</span>
           <span><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="3.4" fill="none" stroke="var(--shadow)" stroke-width="1.6"/></svg>Meal Chaya noticed, not logged</span>
         </div>
         <div class="week" id="week" role="group" aria-label="Pick a day"></div>
@@ -240,6 +246,7 @@
           </div>
           <div id="why-wrap"><div class="why-h">Why Chaya says this <button class="info" data-term="reasons" aria-label="How reasons are chosen">i</button></div><ul class="why" id="why"></ul></div>
           <div id="review-wrap"></div>
+          <div id="esc-wrap"></div>
         </div>
       </section>
 
@@ -276,9 +283,8 @@
 <main id="view-patient" hidden>
   <div class="pstage gutter">
     <aside class="pside" aria-labelledby="h-pside">
-      <div class="k">Patient view</div>
-      <h1 id="h-pside">What <span id="ps-name">Sanjay</span> sees on his phone.</h1>
-      <p>The patient's copy of the Rx pad: his own numbers, the advice his doctor saved, and the devices feeding Chaya. No risk scores, no twin parameters, no other patients.</p>
+      <h1 id="h-pside">What <span id="ps-name">Sanjay</span> sees on <span class="ps-his">his</span> phone.</h1>
+      <p>The patient keeps the carbon copy of the Rx pad: their own glucose with Chaya's shadow two hours ahead, the doctor's advice in the doctor's own hand, and reminders for every medicine. In English or Hindi. No risk scores, no twin parameters, no other patients.</p>
       <div class="pside-ctl">
         <label for="ps-pick">Patient</label>
         <select id="ps-pick"></select>
@@ -287,19 +293,34 @@
           <div class="clock-time"><label for="ps-slider">Now</label><input id="ps-slider" type="range" min="0" max="95" step="1"><output id="ps-tout" for="ps-slider">12:45</output></div>
         </div>
       </div>
-      <ul class="pside-list">
-        <li><b>Today</b> current glucose from the sensor, the next two hours as a violet shadow, steps, sleep and doses.</li>
-        <li><b>Advice</b> every note the doctor saves on the Rx pad arrives here in their handwriting, with what it should do.</li>
-        <li><b>Week</b> time in range, sleep and steps day by day.</li>
-        <li><b>My data</b> each connected device and record, and when it last sent data.</li>
-      </ul>
-      <a class="btn btn-quiet btn-sm" id="ps-back" href="#/clinic/GT-1102">← Back to the clinic</a>
+      <dl class="pside-list">
+        <div><dt>Today</dt><dd>Glucose now with a drawn trend arrow, the next two hours as a violet shadow, plain-language alerts for highs and lows, medicine reminders and today's log.</dd></div>
+        <div><dt>Log</dt><dd>Pick a dish from 38 Indian meals or snap a photo; the twin shows what it will do and what a 15-minute walk changes.</dd></div>
+        <div><dt>Advice</dt><dd>Every note the doctor saves on the Rx pad, with what it should do. The patient taps Got it and the clinic sees it.</dd></div>
+        <div><dt>Week · My data</dt><dd>Time in range day by day, and every device and record feeding the twin.</dd></div>
+      </dl>
+      <div class="pside-acts"><a class="btn btn-quiet btn-sm" id="ps-back" href="#/clinic/GT-1102">Back to the clinic</a><a class="btn btn-quiet btn-sm" href="#/patient/GT-1018?t=0.37">See a low-glucose warning: Geeta</a></div>
     </aside>
     <div class="phone" id="phone">
       <div class="phone-screen" id="pscreen" aria-live="polite"></div>
+      <div class="psheet" id="psheet" hidden></div>
       <nav class="ptabs" id="ptabs" aria-label="Patient app sections"></nav>
     </div>
   </div>
+</main>
+
+<!-- ============================================================ OUTCOMES -->
+<main id="view-outcomes" hidden>
+  <section class="gutter outc" aria-labelledby="h-outc">
+    <div class="wrap">
+      <div class="outc-head">
+        <div><h1 class="page-h" id="h-outc">Clinic outcomes</h1>
+        <p class="intro" id="outc-lede">How the panel is doing this week and whether warnings turn into action.</p></div>
+        <p class="outc-note">45 synthetic patients · Mon 14 to Sun 20 Sep 2026. No behaviour change is simulated, so these numbers show the baseline a pilot would improve on.</p>
+      </div>
+      <div id="outc-body"><div class="loading">Adding up the week…</div></div>
+    </div>
+  </section>
 </main>
 
 <!-- ============================================================ DATA SOURCES -->
