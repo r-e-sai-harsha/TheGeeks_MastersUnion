@@ -528,6 +528,7 @@ details.more > summary { cursor: pointer; padding: 14px 0; font-weight: 600; col
 .pnote.seen { opacity: .78; }
 .pn-h { display: flex; justify-content: space-between; gap: 8px; font-size: var(--t-xs); color: var(--ink-3); }
 .pn-h span:first-child { font-weight: 700; color: var(--stamp); }
+.pn-h span:last-child { white-space: nowrap; }
 .pn-t { font-size: 1.3rem; line-height: 1.35; color: var(--ink); }
 .pn-e { display: grid; gap: 1px; padding: 10px 12px; background: var(--shadow-soft); border-radius: 12px; font-size: var(--t-sm); }
 .pn-e span { font-size: var(--t-xs); color: var(--ink-2); }
