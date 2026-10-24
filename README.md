@@ -146,7 +146,7 @@ Hidden ground truth (true meals, true physiology) sits in `data/_ground_truth/` 
 - **Patient's twin**: insulin sensitivity, insulin response and resting glucose against the cohort and the EHR-only estimate.
 - **Layout**: the register is pinned to the left edge and *Next 2 hours* plus *Patient's twin* to the right edge; the case sheet scrolls between them.
 - **Rx pad**: a compose-style **℞ Try advice** button at the bottom right opens the pad as a dock (minimise or close it like a mail draft). Write advice (meal, timing, walk, sleep, metformin), see the four-hour simulation, then **save and send it to the patient**: it is stored in the case notes in the database and a toast offers **Open <name>'s advice**, which jumps to the Advice tab of that patient's app.
-- **Header**: on the home page, section links plus two switches, *Simulated clinic* and *Patient app*. Inside the product, a home button, a Clinic / Patient app switcher that keeps the same patient, and *Outcomes* and *Data sources* on the right.
+- **Header**: on the home page, section links only; you enter through *Open the simulated clinic* in the hero or *Open the patient app* in the home page's patient app section. Inside the product, a home button, a Clinic / Patient app switcher that keeps the same patient, and *Outcomes* and *Data sources* on the right.
 - **Guide**: the 1-minute clinic tour, the worked case, and a **patient app tour** (also on the patient page) that walks through the reading, warnings, dose reminders, meal logging, advice, week, my data, Hindi and a low-glucose example.
 - **Sources** buttons on every panel, and LOINC codes on every health-record field, open where that number comes from.
 

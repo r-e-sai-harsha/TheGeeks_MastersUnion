@@ -271,7 +271,8 @@ function renderNav(view) {
   const app = view !== "home", pid = curPid;
   $("#letterhead").classList.toggle("mode-app", app);
   $("#home-btn").hidden = !app;
-  $("#navlinks").innerHTML = app ? "" : [["#how", "How it works"], ["#sources", "Data sources"], ["#evidence", "Evidence"], ["#india", "Built for India"], ["#safety", "Safety"]]
+  $("#modes").hidden = !app;
+  $("#navlinks").innerHTML = app ? "" : [["#how", "How it works"], ["#clinic-preview", "The clinic"], ["#patient-app", "Patient app"], ["#sources", "Data sources"], ["#evidence", "Evidence"], ["#safety", "Safety"]]
     .map(([h, t]) => `<a href="${h}">${t}</a>`).join("");
   const modes = [["clinic", `#/clinic/${pid}`, app ? "Clinic" : "Simulated clinic"], ["patient", `#/patient/${pid}`, "Patient app"]];
   $("#modes").innerHTML = modes.map(([id, h, t]) => {
