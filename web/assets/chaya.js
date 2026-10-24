@@ -83,11 +83,15 @@ const above = a => a.filter(v => v > 180).length * 5;
 const Data = {
   live: false, db: null, meta: null, register: null, cases: new Map(), demo: null,
   async init() {
-    try {
-      const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 2500);
-      const r = await fetch("api/health", { signal: ctl.signal }); clearTimeout(to);
-      if (r.ok && (r.headers.get("content-type") || "").includes("json")) { const h = await r.json(); this.live = true; this.db = h.database; }
-    } catch { this.live = false; }
+    // The API can take a few seconds on a cold start; wait up to 8 s, then try once more before falling back to the bundled data.
+    for (let attempt = 0; attempt < 2 && !this.live; attempt++) {
+      try {
+        const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 8000);
+        const r = await fetch("api/health", { signal: ctl.signal, cache: "no-store" }); clearTimeout(to);
+        if (r.ok && (r.headers.get("content-type") || "").includes("json")) { const h = await r.json(); this.live = true; this.db = h.database; }
+        else if (r.status === 404) break; // no API on this host (local file server): go offline straight away
+      } catch { this.live = false; }
+    }
     const pill = $("#conn"), t = $("#conn-t");
     if (this.live) { pill.classList.add("live"); t.textContent = `Live · ${this.db.replace(" PostgreSQL", "")}`; pill.title = `Clinic data is served by the Chaya API from ${this.db}. Notes you save are stored there.`; }
     else { t.textContent = "Offline demo"; pill.title = "The API is not reachable here, so the clinic runs on the bundled synthetic data. Notes are kept in this browser."; }
