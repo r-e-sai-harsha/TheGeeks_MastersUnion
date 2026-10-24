@@ -220,7 +220,23 @@ img.fig{display:block;max-width:100%;border-radius:8px}
 <section class="s" style="padding:40px 56px">
   <div class="eyebrow">The doctor's view · Sanjay Krishnan, Sunday 12:45</div>
   <img class="fig" src="shots/console.png" style="width:1168px;height:590px;object-fit:cover;object-position:top left;border:1px solid var(--line);box-shadow:0 10px 40px rgba(20,33,43,.12)">
-  <div class="foot"><span>Register pinned left · case sheet with twin forecast · Next 2 hours and twin pinned right · ℞ Try advice</span><span>11</span></div>
+  <div class="foot"><span>Register pinned left · case sheet with twin forecast · Next 2 hours and twin pinned right · ℞ Advise / Prescribe</span><span>11</span></div>
+</section>
+
+<!-- HEALTH RECORD -->
+<section class="s" style="padding:48px 64px">
+  <div class="eyebrow">The health record · new</div>
+  <h2>One reading or a week of readings: the record says which.</h2>
+  <div class="row" style="margin-top:20px;gap:30px;align-items:flex-start">
+    <img class="fig" src="shots/record.png" style="width:640px;height:520px;object-fit:cover;object-position:top;border:1px solid var(--line)">
+    <div style="display:grid;gap:16px;font-size:17px;line-height:1.42;flex:1">
+      <div><span class="mono" style="color:var(--ink)">●</span> <b>Point in time:</b> one lab or exam value from the EHR.</div>
+      <div><span class="mono" style="color:var(--twin)">〰</span> <b>Trend:</b> this week's CGM, moving with the replay clock.</div>
+      <div class="card" style="padding:16px 18px"><div class="k" style="margin-bottom:6px">Sanjay Krishnan</div>HbA1c <b class="mono">6.4%</b> at target, yet GMI <b class="mono" style="color:var(--twin)">6.9%</b>; fasting <b class="mono">131</b>, waking glucose above 130 on <b>6 of 7</b> mornings.</div>
+      <div>Each other value gets a <b>target bar</b> and a word: At target, High, Low, Raised. Asian BMI and Indian waist cut-offs.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Targets: ADA Standards of Care · WHO Asia-Pacific BMI · Indian waist consensus · LOINC code on every value</span><span>12</span></div>
 </section>
 
 <!-- 12 WHY -->
@@ -234,7 +250,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
       <div class="muted" style="font-size:16px;margin-top:8px">Tree SHAP contributions grouped into the drivers a clinician thinks in. Violet: drivers that come from the twin.</div>
     </div>
   </div>
-  <div class="foot"><span>Chaya</span><span>12</span></div>
+  <div class="foot"><span>Chaya</span><span>13</span></div>
 </section>
 
 <!-- 13 WHAT-IF -->
@@ -255,7 +271,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
     </div>
     <img class="fig" src="shots/whatif.png" style="width:400px;height:470px;border:1px solid var(--line);object-fit:cover;object-position:bottom">
   </div>
-  <div class="foot"><span>Peak glucose over the next 4 h, simulated by the calibrated twin</span><span>13</span></div>
+  <div class="foot"><span>Peak glucose over the next 4 h, simulated by the calibrated twin</span><span>14</span></div>
 </section>
 
 <!-- LOW GLUCOSE -->
@@ -271,7 +287,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
     <img class="fig" src="shots/risk-low.png" style="width:330px;height:470px;object-fit:cover;object-position:top;border:1px solid var(--line)">
     <img class="fig" src="shots/p-low.png" style="width:270px;height:470px;object-fit:cover;object-position:top">
   </div>
-  <div class="foot"><span>Forecast below 80 mg/dL → Low likely · CGM below 70 → Low now · Geeta Mukherjee, on glimepiride and basal insulin</span><span>14</span></div>
+  <div class="foot"><span>Forecast below 80 mg/dL → Low likely · CGM below 70 → Low now · Geeta Mukherjee, on glimepiride and basal insulin</span><span>15</span></div>
 </section>
 
 <!-- CARE LOOP -->
@@ -299,7 +315,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
       <div><b>Stored in Supabase:</b> <span class="mono" style="font-size:15px">alert_reviews · escalations · case_notes · patient_logs</span></div>
     </div>
   </div>
-  <div class="foot"><span>Chaya</span><span>15</span></div>
+  <div class="foot"><span>Chaya</span><span>16</span></div>
 </section>
 
 <!-- PATIENT APP -->
@@ -317,7 +333,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
       <div class="muted">No risk scores, no twin parameters, no other patients.</div>
     </div>
   </div>
-  <div class="foot"><span>Sanjay Krishnan · Sunday 20 Sep · 12:45</span><span>16</span></div>
+  <div class="foot"><span>Sanjay Krishnan · Sunday 20 Sep · 12:45</span><span>17</span></div>
 </section>
 
 <!-- OUTCOMES -->
@@ -331,7 +347,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
       <div style="font-size:16px;line-height:1.4"><b class="mono">2.6 → 4.6</b> warnings per patient a day buys <b class="mono">74% → 98%</b> of spikes warned within 2 h.</div>
     </div>
   </div>
-  <div class="foot"><span>Time in range · low safety · alert load · warnings → reviewed → escalated → contacted → advice sent → seen</span><span>17</span></div>
+  <div class="foot"><span>Time in range · low safety · alert load · warnings → reviewed → escalated → contacted → advice sent → seen</span><span>18</span></div>
 </section>
 
 <!-- DATA SOURCES -->
@@ -346,7 +362,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
       <div class="muted">A Sources button on every panel opens the same detail.</div>
     </div>
   </div>
-  <div class="foot"><span>Chaya</span><span>18</span></div>
+  <div class="foot"><span>Chaya</span><span>19</span></div>
 </section>
 
 <!-- WORKSPACE -->
@@ -357,14 +373,32 @@ img.fig{display:block;max-width:100%;border-radius:8px}
     <img class="fig" src="shots/toast.png" style="width:720px;height:400px;object-fit:cover;object-position:top right;border:1px solid var(--line)">
     <div style="display:grid;gap:13px;font-size:16.5px;line-height:1.4;flex:1">
       <div><b>Pinned panes:</b> register on the left edge, forecast and twin on the right.</div>
-      <div><b>℞ Try advice</b> opens the Rx pad like an email draft; minimise or close.</div>
+      <div><b>℞ Advise / Prescribe to Sanjay</b>, bottom-right corner, opens the Rx pad like an email draft; minimise or close.</div>
       <div><b>Save and send</b> shows a toast that opens that patient's Advice tab.</div>
-      <div><b>Clear navigation:</b> home → clinic or patient app; inside, a switcher that keeps the same patient.</div>
-      <div><b>Three guided tours:</b> product, Sanjay's case, patient app.</div>
+      <div><b>Clear navigation:</b> inside, a Clinic / Patient app switcher that keeps the same patient, plus Outcomes and Data sources.</div>
       <div><b>Unique names:</b> every patient has a surname.</div>
     </div>
   </div>
-  <div class="foot"><span>Chaya</span><span>19</span></div>
+  <div class="foot"><span>Chaya</span><span>20</span></div>
+</section>
+
+<!-- FIRST VISIT -->
+<section class="s" style="padding:48px 64px">
+  <div class="eyebrow">Built for someone opening it cold · new</div>
+  <h2>Two clear ways in, and help that appears where you look.</h2>
+  <div class="row" style="margin-top:20px;gap:26px;align-items:flex-start">
+    <img class="fig" src="shots/home.png" style="width:660px;height:372px;object-fit:cover;object-position:top;border:1px solid var(--line)">
+    <div style="display:grid;gap:14px;flex:1">
+      <img class="fig" src="shots/tooltip.png" style="width:100%;border:1px solid var(--line)">
+      <div style="display:grid;gap:10px;font-size:16px;line-height:1.4">
+        <div><b>Two pulsing entry buttons:</b> the simulated clinic in the hero, the patient app right below it.</div>
+        <div><b>Floating section bar</b> at the bottom with a sliding highlight.</div>
+        <div><b>i buttons</b> explain each panel in a tooltip on hover or tap.</div>
+        <div><b>Three guided tours:</b> product, Sanjay's case, patient app.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Chaya</span><span>21</span></div>
 </section>
 
 <!-- 14 SAFETY -->
@@ -377,7 +411,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
     <div class="card" style="flex:1"><div style="font-size:22px;font-weight:600;margin-bottom:10px">Lows come first</div><div class="muted" style="font-size:17px;line-height:1.45">Low warnings lead the patient's screen with the 15 g sugar rule; sulfonylurea and insulin users are flagged.</div></div>
     <div class="card" style="flex:1"><div style="font-size:22px;font-weight:600;margin-bottom:10px">DPDP-ready</div><div class="muted" style="font-size:17px;line-height:1.45">Synthetic data only. FHIR-native, so it can use ABDM-consented records with purpose limitation.</div></div>
   </div>
-  <div class="foot"><span>Chaya</span><span>20</span></div>
+  <div class="foot"><span>Chaya</span><span>22</span></div>
 </section>
 
 <!-- 15 ROADMAP -->
@@ -397,7 +431,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
       <text x="860" y="140" font-size="16" fill="#4d5683">WhatsApp Business API,</text><text x="860" y="162" font-size="16" fill="#4d5683">ABDM-consented records,</text><text x="860" y="184" font-size="16" fill="#4d5683">hypertension twin</text>
     </g>
   </svg>
-  <div class="foot"><span>Chaya</span><span>21</span></div>
+  <div class="foot"><span>Chaya</span><span>23</span></div>
 </section>
 
 <!-- 16 CLOSE -->

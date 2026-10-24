@@ -56,18 +56,18 @@
 },
 {
 "id": "11b_explain",
-"visual": "slide:12",
+"visual": "slide:13",
 "text": "Every alert comes with its reasons. SHAP breaks each score into contributions, grouped into drivers a clinician recognises: the twin's forecast, a recent meal, activity, glucose trend, sleep, medication and meals the patient forgot to log. The twin's own forecast is the biggest single driver, so the physics is doing real work inside the model."
 },
 {
 "id": "12_home",
 "visual": "app:home",
-"text": "This is Chaya, live on the web. The home page shows the product in a single card, a forecast slip for one patient at twelve fifteen, just before lunch. If he eats chicken biryani and rests, the violet shadow climbs well above one eighty, and the stamp reads spike likely. Switch to ragi mudde, a millet dish, and add a twenty-minute walk. The shadow flattens, and the stamp reads in range. Further down, the page explains how it works, where every number comes from, the evidence, and the patient app, with its own button to open it."
+"text": "This is Chaya, live on the web. The home page shows the product in a single card, a forecast slip for one patient at twelve fifteen, just before lunch. If he eats chicken biryani and rests, the violet shadow climbs well above one eighty, and the stamp reads spike likely. Switch to ragi mudde, a millet dish, and add a twenty-minute walk. The shadow flattens, and the stamp reads in range. There are two ways in, and both pulse so nobody misses them: the simulated clinic here, and the patient app just below. A floating bar at the bottom jumps to every section."
 },
 {
 "id": "13_clinic",
 "visual": "app:clinic",
-"text": "Now let us open the simulated clinic, from the button at the top of the page. Inside, the header changes to a workspace: a home icon, a switch between the clinic and the patient app that keeps the same patient, and links to clinic outcomes and data sources. The strip reminds everyone that every patient here is synthetic. The pill says live, Supabase: the clinic is served by our API on Vercel, in Mumbai, next to the database. A welcome slip offers a one-minute tour, or a guided walkthrough of one patient's case."
+"text": "Let us open the simulated clinic. Inside, the header becomes a workspace: a home icon, a switch between the clinic and the patient app that keeps the same patient, and links to outcomes and data sources. The strip reminds everyone that every patient is synthetic, and the pill says live, Supabase: our API on Vercel in Mumbai, next to the database. A welcome slip offers a one-minute tour, or a walkthrough of one patient's case."
 },
 {
 "id": "13b_tour",
@@ -100,9 +100,14 @@
 "text": "Back in the clinic. Every patient now has a full name, so no two people in the register look alike. Sort by lowest time in range, or by low-glucose risk, and open another patient. Press replay, and watch the warnings appear before the spikes, not after them."
 },
 {
+"id": "17b_record",
+"visual": "app:record",
+"text": "Open the health record, and it now says what kind of number you are looking at. A dot means a single reading from the record; a violet line means a trend from this week's sensor. Sanjay's lab HbA1c of six point four looks fine, but the sensor's estimate this week is six point nine, and his waking glucose was above one thirty on six of seven mornings. Every other value has a target bar and a plain word: high, low, raised or at target."
+},
+{
 "id": "19_review",
 "visual": "app:review",
-"text": "Every warning can be marked as reviewed, which keeps an audit trail. And if a term is unfamiliar, each panel has a small i button, and a Sources button that shows exactly where that number comes from."
+"text": "Every warning can be marked as reviewed, which keeps an audit trail. Hover any small i button and a tooltip explains that panel in plain words, and a Sources button shows exactly where each number comes from."
 },
 {
 "id": "19b_low",
@@ -127,31 +132,31 @@
 {
 "id": "20c_data",
 "visual": "app:data",
-"text": "Every number has a source. The data sources page lists all twenty five parameters Chaya monitors, in four groups: wearables, patient app logs, the health record, and values Chaya computes. For each, it shows what it is used for, where this prototype gets it, where a real clinic would get it, its standard code, and how often it arrives."
+"text": "Every number has a source. The data sources page lists all twenty five parameters in four groups, each with its use, where the prototype gets it, where a clinic would, its standard code and how often it arrives."
 },
 {
 "id": "20d_ptour",
 "visual": "app:ptour",
-"text": "And for anyone opening the patient app cold, the guide now includes a patient app tour, eleven short steps through the reading, warnings, dose reminders, logging, advice, the week, the Hindi switch, and a low-glucose example."
+"text": "And the guide now includes a patient app tour, eleven short steps for anyone opening the app cold."
 },
 {
 "id": "22_backend",
 "visual": "app:backend",
-"text": "Under the hood, this is a real backend. The health endpoint reports the database and its forty five patients. Reviews, escalations, advice, read receipts and patient logs are stored in Supabase Postgres with row-level security. Locally, a FastAPI service runs the full pipeline from a raw FHIR bundle and the wearable stream to a risk with reasons. Everything is open source under the MIT licence."
+"text": "Under the hood is a real backend. The health endpoint reports the database and its forty five patients; reviews, escalations, advice, read receipts and patient logs live in Supabase Postgres with row-level security. Everything is open source under the MIT licence."
 },
 {
 "id": "23_safety",
-"visual": "slide:20",
+"visual": "slide:22",
 "text": "Chaya is built to support the doctor, not to replace them. It is decision support only, with a clinician in the loop and no dosing advice. Alerts are merged into episodes, and the clinic sets the threshold, seeing the trade-off as it does. Lows come first on the patient's screen. There is no real patient data in this prototype. When it moves to real records, consent will flow through ABDM, in line with India's Digital Personal Data Protection Act, and the system is FHIR-native from day one."
 },
 {
 "id": "24_roadmap",
-"visual": "slide:21",
+"visual": "slide:23",
 "text": "Today, the prototype covers the clinic and a bilingual patient app, for both spikes and lows, live on Vercel and Supabase. Next, we validate on public glucose datasets such as CGMacros and BIG IDEAs. Then a supervised pilot with a partner diabetes clinic. And then we extend: the WhatsApp Business API for escalations, ABDM-consented records, and a hypertension twin."
 },
 {
 "id": "25_close",
-"visual": "slide:22",
+"visual": "slide:24",
 "text": "Diabetes care in India does not have to be reactive. With Chaya, we see the spike before it happens, we make sure someone acts on it, and we show the patient how to avoid it. The live app and all our code are linked below. Thank you from The Geeks."
 }
 ]

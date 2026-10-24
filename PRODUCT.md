@@ -28,7 +28,8 @@ A calibrated physiology model per patient, not only a black-box score: it can an
 ## Operating Context
 
 - Clinic workflow: scan panel → open patient → read risk and reasons → assign an owner and contact the patient → test a change on the Rx pad → save and send → see it read in the patient app.
-- Navigation: the home page has section links; the clinic is entered from the hero CTA and the patient app from its own home section. Inside the product: home icon, Clinic / Patient app switcher, Outcomes, Data sources.
+- Navigation: the home page has a floating section bar at the bottom; the clinic is entered from the pulsing hero CTA and the patient app from the pulsing CTA in its section right below the hero.
+- Health record: point-in-time EHR values (target bars, plain status) kept apart from this week's CGM trends (GMI, waking glucose); i buttons explain in tooltips. Inside the product: home icon, Clinic / Patient app switcher, Outcomes, Data sources.
 - Demo uses a 7-day replay of a synthetic week (Mon 14 – Sun 20 Sep 2026); the clinician scrubs a "now" clock.
 - Indian context: regional meals (idli, dosa, rajma chawal, biryani, ragi mudde), late dinners, festival days, common Indian prescriptions.
 

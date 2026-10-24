@@ -189,7 +189,9 @@ Hidden ground truth (true meals, true physiology) sits in `data/_ground_truth/` 
 | Control | Adjustable alert threshold with its measured trade-off |
 | Patient app | Bilingual (English, Hindi), meal and dose logging that feeds the twin, dose reminders, advice read receipts |
 | Clinic layout | Register and forecast panes pinned to the screen edges; the Rx pad is a compose-style dock; saving advice offers a link straight to that patient's Advice tab |
-| Navigation | Home has section links and two entry points (hero CTA for the clinic, a patient app section with its own CTA); inside the product a home icon, a Clinic / Patient app switcher, Outcomes and Data sources |
+| Navigation | Home has a floating section bar at the bottom and two pulsing entry buttons (the clinic in the hero, the patient app right below it); inside the product a home icon, a Clinic / Patient app switcher, Outcomes and Data sources |
+| Health record | Point-in-time EHR values with target bars and plain status, kept apart from this week's CGM trends (HbA1c vs GMI, fasting vs waking glucose) |
+| Help | `i` buttons explain each panel in a tooltip; product tour, case walkthrough and patient app tour |
 | Transparency | Data sources page and a Sources drawer on every panel: 25 parameters with origin, standard code and cadence |
 | Reliability | API runs in Mumbai (`bom1`) next to the database; the browser waits for cold starts and falls back to the bundled data if the API is unreachable |
 
