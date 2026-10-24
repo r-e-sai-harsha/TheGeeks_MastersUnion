@@ -869,3 +869,30 @@ details.more > summary { cursor: pointer; padding: 14px 0; font-weight: 600; col
   .callouts { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* ---------- tooltips for the i buttons ---------- */
+.tip { position: fixed; z-index: 120; max-width: min(320px, calc(100vw - 24px)); padding: 12px 14px; border-radius: 10px; background: var(--letterhead); color: var(--on-letterhead); box-shadow: var(--lift-hi); font-size: var(--t-sm); line-height: 1.45; display: grid; gap: 4px; pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .2s var(--ease); }
+.tip[data-side="above"] { transform: translateY(-4px); }
+.tip.on { opacity: 1; transform: none; }
+.tip b { font-weight: 700; color: #fff; }
+.tip span { color: var(--on-letterhead-2); }
+.tip::before { content: ""; position: absolute; left: calc(var(--ax, 50%) - 6px); width: 12px; height: 12px; background: var(--letterhead); transform: rotate(45deg); border-radius: 2px; }
+.tip[data-side="below"]::before { top: -5px; }
+.tip[data-side="above"]::before { bottom: -5px; }
+.info { cursor: help; }
+
+/* ---------- home: floating section nav at the bottom ---------- */
+.homenav { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 70; max-width: calc(100vw - 24px); padding: 5px; border-radius: 99px; background: rgba(9, 14, 44, .92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 18px 40px -14px rgba(10, 14, 30, .55), inset 0 0 0 1px rgba(255,255,255,.08); animation: hnUp .5s var(--ease) both; }
+.homenav[hidden] { display: none; }
+@keyframes hnUp { from { opacity: 0; transform: translate(-50%, 16px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.hn-track { position: relative; z-index: 1; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; border-radius: 99px; }
+.hn-track::-webkit-scrollbar { display: none; }
+.hn-track a { flex: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 99px; color: var(--on-letterhead-2); text-decoration: none; font-size: var(--t-sm); font-weight: 600; white-space: nowrap; transition: color .25s; }
+.hn-track a:hover { color: #fff; }
+.hn-track a.on { color: #fff; }
+.hn-track a:focus-visible { outline: 2px solid #c9b8f5; outline-offset: -2px; }
+.hn-ind { position: absolute; z-index: 0; top: 5px; left: 0; height: 40px; border-radius: 99px; background: linear-gradient(135deg, #8a6be0, var(--shadow)); box-shadow: 0 4px 14px -4px rgba(106, 68, 201, .7); opacity: 0; transition: transform .45s var(--ease), width .45s var(--ease), opacity .25s; pointer-events: none; }
+#view-home { padding-bottom: 84px; }
+@media (max-width: 640px) { .hn-track a { padding: 0 13px; } }
+@media (prefers-reduced-motion: reduce) { .hn-ind { transition: none; } }
+.navlinks[hidden] { display: none; }

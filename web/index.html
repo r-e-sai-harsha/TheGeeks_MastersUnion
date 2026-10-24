@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#141d49">
 <meta name="color-scheme" content="light">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23141d49'/%3E%3Cpath d='M21 9.5a8 8 0 1 0 0 13' fill='none' stroke='%23f2f5ef' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M25 12.5a8 8 0 0 1 0 7' fill='none' stroke='%23ad94ff' stroke-width='2.5' stroke-linecap='round' stroke-dasharray='2 3'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="assets/chaya.css?v=20261024d">
+<link rel="stylesheet" href="assets/chaya.css?v=20261024e">
 </head>
 <body>
 
@@ -84,6 +84,28 @@
     </div>
   </section>
 
+  <section class="section gutter" id="patient-app" aria-labelledby="h-papp">
+    <div class="wrap papp-home">
+      <div class="papp-copy">
+        <h2 id="h-papp">The patient carries the carbon copy.</h2>
+        <p class="intro">Every warning the doctor sees has a plainer twin on the patient's phone: their own glucose with Chaya's shadow two hours ahead, the doctor's advice in the doctor's hand, and a nudge before every dose. In English or Hindi.</p>
+        <ul class="papp-feats">
+          <li><b>Today</b><span>Glucose now with its trend, the next two hours drawn as a violet shadow, and one plain sentence when a spike or a low is coming.</span></li>
+          <li><b>Lows first</b><span>A likely low moves to the top of the screen with what to do: take sugar, recheck in 15 minutes, call if it does not lift.</span></li>
+          <li><b>Dose reminders</b><span>Learned from the patient's own week. Taken, due, missed or snoozed, and the clinic sees it.</span></li>
+          <li><b>Log a meal</b><span>Pick from 38 Indian dishes or snap a photo. It lands on the clinic's day trace.</span></li>
+          <li><b>Advice</b><span>Every note saved on the Rx pad, with the peak it should prevent. The patient taps Got it.</span></li>
+        </ul>
+        <div class="papp-ctas">
+          <a class="btn btn-primary" href="#/patient/GT-1102">Open the patient app
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn btn-quiet" href="#/patient/GT-1018?t=0.37">See a low-glucose warning</a>
+        </div>
+      </div>
+      <figure class="papp-shot"><img src="assets/img/patient.png" alt="Chaya on Sanjay's phone: a spike warning, his glucose with a violet two-hour forecast, the doctor's advice and his medicine reminders" loading="lazy" width="784" height="1560"></figure>
+    </div>
+  </section>
+
   <section class="section gutter" id="how" aria-labelledby="h-how">
     <div class="wrap">
       <h2 id="h-how">One week to learn the body. Every 15 minutes after that, a forecast.</h2>
@@ -120,28 +142,6 @@
         <div><i>Stamp</i><b>Why it matters</b><span>Spike likely, watch or in range, with the three biggest reasons in plain words.</span></div>
         <div><i>Rx pad</i><b>What to change</b><span>Write advice and the twin redraws the next four hours for this patient's body.</span></div>
       </div>
-    </div>
-  </section>
-
-  <section class="section gutter" id="patient-app" aria-labelledby="h-papp">
-    <div class="wrap papp-home">
-      <div class="papp-copy">
-        <h2 id="h-papp">The patient carries the carbon copy.</h2>
-        <p class="intro">Every warning the doctor sees has a plainer twin on the patient's phone: their own glucose with Chaya's shadow two hours ahead, the doctor's advice in the doctor's hand, and a nudge before every dose. In English or Hindi.</p>
-        <ul class="papp-feats">
-          <li><b>Today</b><span>Glucose now with its trend, the next two hours drawn as a violet shadow, and one plain sentence when a spike or a low is coming.</span></li>
-          <li><b>Lows first</b><span>A likely low moves to the top of the screen with what to do: take sugar, recheck in 15 minutes, call if it does not lift.</span></li>
-          <li><b>Dose reminders</b><span>Learned from the patient's own week. Taken, due, missed or snoozed, and the clinic sees it.</span></li>
-          <li><b>Log a meal</b><span>Pick from 38 Indian dishes or snap a photo. It lands on the clinic's day trace.</span></li>
-          <li><b>Advice</b><span>Every note saved on the Rx pad, with the peak it should prevent. The patient taps Got it.</span></li>
-        </ul>
-        <div class="papp-ctas">
-          <a class="btn btn-primary" href="#/patient/GT-1102">Open the patient app
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <a class="btn btn-quiet" href="#/patient/GT-1018?t=0.37">See a low-glucose warning</a>
-        </div>
-      </div>
-      <figure class="papp-shot"><img src="assets/img/patient.png" alt="Chaya on Sanjay's phone: a spike warning, his glucose with a violet two-hour forecast, the doctor's advice and his medicine reminders" loading="lazy" width="784" height="1560"></figure>
     </div>
   </section>
 
@@ -375,11 +375,13 @@
   <div class="drawer-h"><h2 id="h-gloss">What's what</h2><button class="icon-btn" id="gloss-close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="drawer-b"><dl id="gloss-list" style="margin:0"></dl></div>
 </aside>
+<nav class="homenav" id="homenav" aria-label="Sections of this page" hidden><span class="hn-ind" id="hn-ind" aria-hidden="true"></span><div class="hn-track" id="hn-track"></div></nav>
+<div class="tip" id="tip" role="tooltip" hidden></div>
 <div id="tour-root"></div>
 <div id="welcome-root"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="assets/vendor/d3.min.js"></script>
-<script src="assets/chaya.js?v=20261024d"></script>
+<script src="assets/chaya.js?v=20261024e"></script>
 </body>
 </html>

@@ -272,8 +272,8 @@ function renderNav(view) {
   $("#letterhead").classList.toggle("mode-app", app);
   $("#home-btn").hidden = !app;
   $("#modes").hidden = !app;
-  $("#navlinks").innerHTML = app ? "" : [["#how", "How it works"], ["#clinic-preview", "The clinic"], ["#patient-app", "Patient app"], ["#sources", "Data sources"], ["#evidence", "Evidence"], ["#safety", "Safety"]]
-    .map(([h, t]) => `<a href="${h}">${t}</a>`).join("");
+  $("#navlinks").innerHTML = ""; $("#navlinks").hidden = true;
+  HomeNav.show(!app);
   const modes = [["clinic", `#/clinic/${pid}`, app ? "Clinic" : "Simulated clinic"], ["patient", `#/patient/${pid}`, "Patient app"]];
   $("#modes").innerHTML = modes.map(([id, h, t]) => {
     const on = app ? view === id : id === "clinic";
@@ -283,6 +283,45 @@ function renderNav(view) {
     .map(([h, t, id]) => `<a href="${h}"${view === id ? ' aria-current="page"' : ""}>${t}</a>`).join("") : "";
 }
 window.addEventListener("hashchange", route);
+
+// ================================================================== home section nav (bottom, floating)
+const HomeNav = {
+  items: [["patient-app", "Patient app"], ["how", "How it works"], ["sources", "Data sources"], ["clinic-preview", "The clinic"], ["evidence", "Evidence"], ["india", "Built for India"], ["safety", "Safety"]],
+  on: null, ready: false,
+  init() {
+    this.ready = true;
+    $("#hn-track").innerHTML = this.items.map(([id, t]) => `<a href="#${id}" data-id="${id}">${t}</a>`).join("");
+    $("#hn-track").addEventListener("click", e => {
+      const a = e.target.closest("a[data-id]"); if (!a) return; e.preventDefault();
+      const el = document.getElementById(a.dataset.id); if (!el) return;
+      this.set(a.dataset.id, true); this.lock = Date.now() + 900;
+      el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    });
+    const io = new IntersectionObserver(es => {
+      if (this.lock && Date.now() < this.lock) return;
+      es.forEach(en => { if (en.isIntersecting) this.set(en.target.id); });
+    }, { rootMargin: "-45% 0px -50% 0px" });
+    this.items.forEach(([id]) => { const el = document.getElementById(id); if (el) io.observe(el); });
+    const hero = $("#view-home .hero");
+    new IntersectionObserver(([en]) => { if (en.isIntersecting && !(this.lock && Date.now() < this.lock)) this.set(null); }, { rootMargin: "-45% 0px -50% 0px" }).observe(hero);
+    window.addEventListener("resize", () => this.place());
+    $("#hn-track").addEventListener("scroll", () => this.place(), { passive: true });
+  },
+  show(v) { if (v && !this.ready) this.init(); $("#homenav").hidden = !v; if (v) requestAnimationFrame(() => this.place()); },
+  set(id, user) {
+    this.on = id;
+    $$("#hn-track a").forEach(a => { const on = a.dataset.id === id; a.classList.toggle("on", on); if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current"); });
+    const a = id && $(`#hn-track a[data-id="${id}"]`);
+    if (a && !user) a.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+    this.place();
+  },
+  place() {
+    const ind = $("#hn-ind"), a = this.on && $(`#hn-track a[data-id="${this.on}"]`);
+    if (!a) { ind.style.opacity = 0; return; }
+    const nr = $("#homenav").getBoundingClientRect(), r = a.getBoundingClientRect();
+    ind.style.opacity = 1; ind.style.width = `${r.width}px`; ind.style.transform = `translateX(${r.left - nr.left}px)`;
+  },
+};
 
 // ================================================================== HOME
 const Home = {
@@ -915,12 +954,47 @@ const TERMS = [
   ["sources", "Data sources", "Every parameter is tagged with where it comes from: the wearables (CGM, smartwatch), the patient's own logs (meals, doses), the health record (FHIR, with LOINC and SNOMED codes), or Chaya's own calculations. Open Guide → Where the data comes from, or any Sources button.", "Everywhere"],
   ["live", "Live or offline", "Live means the clinic is served by the Chaya API on Vercel and its PostgreSQL database on Supabase. Offline demo means the API is not reachable here, so the same data runs from files bundled with the page.", "Top bar"],
 ];
+/* Info buttons explain themselves in a tooltip on hover or focus (tap on touch); the full glossary stays in Guide. */
+const Tip = {
+  el: null, cur: null,
+  init() {
+    this.el = $("#tip");
+    document.querySelectorAll(".info").forEach(b => b.removeAttribute("title"));
+    document.addEventListener("mouseover", e => { const b = e.target.closest(".info"); if (b && b !== this.cur) this.show(b); else if (!b && this.cur && !this.pinned) this.hide(); });
+    document.addEventListener("focusin", e => { const b = e.target.closest(".info"); if (b) this.show(b); });
+    document.addEventListener("focusout", e => { if (e.target.closest(".info")) this.hide(); });
+    document.addEventListener("click", e => {
+      const b = e.target.closest(".info");
+      if (b) { e.preventDefault(); if (this.cur === b && this.pinned) this.hide(); else { this.show(b); this.pinned = true; } return; }
+      if (this.pinned) this.hide();
+    });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && this.cur) this.hide(); });
+    window.addEventListener("scroll", () => { if (this.cur) this.place(); }, { passive: true, capture: true });
+  },
+  show(b) {
+    const t = TERMS.find(x => x[0] === b.dataset.term); if (!t) return;
+    this.cur = b; this.pinned = false;
+    this.el.innerHTML = `<b>${t[1]}</b><span>${t[2]}</span>`;
+    this.el.hidden = false; b.setAttribute("aria-describedby", "tip"); this.place();
+    requestAnimationFrame(() => this.el.classList.add("on"));
+  },
+  hide() { if (this.cur) this.cur.removeAttribute("aria-describedby"); this.cur = null; this.pinned = false; this.el.classList.remove("on"); this.el.hidden = true; },
+  place() {
+    const b = this.cur; if (!b || !b.isConnected) return this.hide();
+    const r = b.getBoundingClientRect(), w = this.el.offsetWidth, h = this.el.offsetHeight, vw = innerWidth, gap = 10;
+    let x = Math.min(Math.max(12, r.left + r.width / 2 - w / 2), vw - w - 12), y = r.bottom + gap, below = true;
+    if (y + h > innerHeight - 12) { y = r.top - gap - h; below = false; }
+    this.el.style.left = `${x}px`; this.el.style.top = `${Math.max(8, y)}px`;
+    this.el.dataset.side = below ? "below" : "above";
+    this.el.style.setProperty("--ax", `${r.left + r.width / 2 - x}px`);
+  },
+};
 const Glossary = {
   init() {
     $("#gloss-list").innerHTML = TERMS.map(([id, t, d, w]) => `<div class="term" id="term-${id}"><dt>${t}${w ? `<span class="where">${w}</span>` : ""}</dt><dd>${d}</dd></div>`).join("");
     $("#gloss-close").addEventListener("click", () => this.close());
     $("#scrim").addEventListener("click", () => this.close());
-    document.addEventListener("click", e => { const b = e.target.closest(".info"); if (b) this.open(b.dataset.term); });
+    Tip.init();
   },
   open(term) {
     this.prev = document.activeElement;
