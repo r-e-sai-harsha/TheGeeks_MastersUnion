@@ -27,25 +27,25 @@ Record your voice over the slides (`docs/Chaya_Presentation.pdf`, 22 slides) and
 | 7:33 | `11b_explain` | Presentation slide 12. |
 | 8:01 | `12_home` | Live app home page. On the forecast slip click **Chicken biryani** + **Rest** (SPIKE LIKELY), then **Ragi mudde** + **Walk 20 min** (IN RANGE). Scroll past the *The clinic* and *Patient app* sections. |
 | 8:47 | `13_clinic` | Click **Open the simulated clinic** in the hero. Point at the header (home icon, Clinic / Patient app switcher, Outcomes, Data sources), the purple synthetic strip and the *Live · Supabase* pill. |
-| 9:32 | `13b_tour` | Welcome slip → **Take the 1-minute tour**. Let it run: register pinned left, forecast and twin pinned right, ℞ *Try advice* bottom right. |
-| 10:16 | `14_case_a` | **Guide → Walk through a case**, steps 1–3 (Sanjay Krishnan at 12:15; biryani 237). |
-| 11:03 | `15_case_b` | Case steps 4–5 (ragi mudde 194; + 20-min walk 178, 0 min above 180). |
-| 11:30 | `16_case_c` | Case steps 6–8 (12:45, SPIKE LIKELY 92%), then **Save and send to patient**. Wait for the toast. |
-| 12:09 | `16b_patient` | Click **Open Sanjay's advice** in the toast → Advice tab → **Got it**. Then Today: scroll to medicines, tap **+** (log sheet, close), tap **हिं** and back to **EN**. |
-| 12:55 | `17_register` | Switch to **Clinic** in the header. Sort the register by *Lowest time in range* and *Low-glucose risk*; open another patient; press **Replay** for ~15 s. |
-| 13:19 | `19_review` | Click **Mark warning as reviewed**; click an **i** and a **Sources** button. |
-| 13:38 | `19b_low` | Home → patient app section → **See a low-glucose warning** (Geeta Mukherjee, Mon 09:15). Show the phone, then switch to **Clinic**: LOW LIKELY stamp and reasons. |
-| 14:27 | `19c_escalate` | Under *Who acts on this?* pick an owner and 15 min → **Assign and start the clock** → show **WhatsApp** and **Log a call** (log one outcome). |
-| 15:00 | `20_rx` | Open ℞ **Try advice**; set metformin *Missed* and sleep 5 h; the peak rises; minimise and reopen the dock. |
-| 15:38 | `20b_outcomes` | Header → **Outcomes**: TIR goal, daily TIR, low safety, alert load, funnel. Back to Clinic → **Alerts** control: *Catch more* ↔ *Fewer alerts*. |
-| 16:15 | `20c_data` | Header → **Data sources**: the four groups; open one parameter. |
-| 16:45 | `20d_ptour` | **Guide → Patient app tour**: click through 3–4 steps. |
-| 17:04 | `22_backend` | Open `https://chaya-tau.vercel.app/api/health`; optionally local `/docs` and `/api/pipeline/GT-1102/risk?at=2026-09-20T12:45`. |
-| 17:36 | `23_safety` | Presentation slide 20. |
-| 18:18 | `24_roadmap` | Presentation slide 21. |
-| 18:47 | `25_close` | Presentation slide 22. |
+| 9:32 | `13b_tour` | Welcome slip → **Take the 1-minute tour**. Let it run: register pinned left, forecast and twin pinned right, ℞ *Advise / Prescribe* bottom right. |
+| 10:19 | `14_case_a` | **Guide → Walk through a case**, steps 1–3 (Sanjay Krishnan at 12:15; biryani 237). |
+| 11:05 | `15_case_b` | Case steps 4–5 (ragi mudde 194; + 20-min walk 178, 0 min above 180). |
+| 11:33 | `16_case_c` | Case steps 6–8 (12:45, SPIKE LIKELY 92%), then **Save and send to patient**. Wait for the toast. |
+| 12:11 | `16b_patient` | Click **Open Sanjay's advice** in the toast → Advice tab → **Got it**. Then Today: scroll to medicines, tap **+** (log sheet, close), tap **हिं** and back to **EN**. |
+| 12:57 | `17_register` | Switch to **Clinic** in the header. Sort the register by *Lowest time in range* and *Low-glucose risk*; open another patient; press **Replay** for ~15 s. |
+| 13:21 | `19_review` | Click **Mark warning as reviewed**; click an **i** and a **Sources** button. |
+| 13:41 | `19b_low` | Home → patient app section → **See a low-glucose warning** (Geeta Mukherjee, Mon 09:15). Show the phone, then switch to **Clinic**: LOW LIKELY stamp and reasons. |
+| 14:29 | `19c_escalate` | Under *Who acts on this?* pick an owner and 15 min → **Assign and start the clock** → show **WhatsApp** and **Log a call** (log one outcome). |
+| 15:03 | `20_rx` | Open ℞ **Advise / Prescribe**; set metformin *Missed* and sleep 5 h; the peak rises; minimise and reopen the dock. |
+| 15:36 | `20b_outcomes` | Header → **Outcomes**: TIR goal, daily TIR, low safety, alert load, funnel. Back to Clinic → **Alerts** control: *Catch more* ↔ *Fewer alerts*. |
+| 16:13 | `20c_data` | Header → **Data sources**: the four groups; open one parameter. |
+| 16:43 | `20d_ptour` | **Guide → Patient app tour**: click through 3–4 steps. |
+| 17:02 | `22_backend` | Open `https://chaya-tau.vercel.app/api/health`; optionally local `/docs` and `/api/pipeline/GT-1102/risk?at=2026-09-20T12:45`. |
+| 17:34 | `23_safety` | Presentation slide 20. |
+| 18:16 | `24_roadmap` | Presentation slide 21. |
+| 18:45 | `25_close` | Presentation slide 22. |
 
-Total ≈ 19:13.
+Total ≈ 19:11.
 
 ## Narration
 
@@ -135,101 +135,101 @@ Total ≈ 19:13.
 
 ### 9:32 · 13b_tour
 
-*Welcome slip → **Take the 1-minute tour**. Let it run: register pinned left, forecast and twin pinned right, ℞ *Try advice* bottom right.*
+*Welcome slip → **Take the 1-minute tour**. Let it run: register pinned left, forecast and twin pinned right, ℞ *Advise / Prescribe* bottom right.*
 
-> First, the one-minute product tour. The register, pinned to the left edge, ranks patients by spike warnings this week. The clock bar replays one synthetic week, and every panel shows only what Chaya knew at that moment. In the middle, the day trace draws glucose in ink and Chaya's two-hour forecast as a violet shadow. Pinned to the right, the stamp escalates from in range to spike likely, with three reasons, above the personal numbers the twin learned. And the Rx pad waits behind the Try advice button, like composing an email.
+> First, the one-minute product tour. The register, pinned to the left edge, ranks patients by spike warnings this week. The clock bar replays one synthetic week, and every panel shows only what Chaya knew at that moment. In the middle, the day trace draws glucose in ink and Chaya's two-hour forecast as a violet shadow. Pinned to the right, the stamp escalates from in range to spike likely, with three reasons, above the personal numbers the twin learned. And the Rx pad waits behind the Advise / Prescribe button in the bottom-right corner, like composing an email.
 
-### 10:16 · 14_case_a
+### 10:19 · 14_case_a
 
 ***Guide → Walk through a case**, steps 1–3 (Sanjay Krishnan at 12:15; biryani 237).*
 
 > Now, from the guide menu, let us walk through Sanjay Krishnan's case. It is Sunday, twelve fifteen, and Sanjay is about to eat lunch. He is fifty three, has had Type Two diabetes for about four years, and takes metformin and glimepiride. His glucose is calm and in range. Over his first week, his twin learned that his insulin sensitivity is low, lower than his health record suggested. That is why lunch hits him hard. If he eats chicken biryani, the twin projects a peak of two hundred and thirty seven, with about two hours above one eighty.
 
-### 11:03 · 15_case_b
+### 11:05 · 15_case_b
 
 *Case steps 4–5 (ragi mudde 194; + 20-min walk 178, 0 min above 180).*
 
 > Swap the rice for ragi mudde, and the peak drops to one hundred and ninety four. Add a twenty-minute walk after lunch, and the peak falls to one hundred and seventy eight, with zero minutes above one eighty. That is advice a patient can actually follow, with a number attached for his own body.
 
-### 11:30 · 16_case_c
+### 11:33 · 16_case_c
 
 *Case steps 6–8 (12:45, SPIKE LIKELY 92%), then **Save and send to patient**. Wait for the toast.*
 
 > Now, what actually happened. At twelve forty five, Sanjay logged an eighty one gram lunch. Chaya stamped his slip spike likely, ninety two percent, and listed the reasons, forty minutes before his glucose actually crossed one eighty. That is the window a care coordinator needs to make a call. Finally, the doctor chooses save and send to patient. The advice is written to the database with the twin's projection, and a note pops up with a link: open Sanjay's advice.
 
-### 12:09 · 16b_patient
+### 12:11 · 16b_patient
 
 *Click **Open Sanjay's advice** in the toast → Advice tab → **Got it**. Then Today: scroll to medicines, tap **+** (log sheet, close), tap **हिं** and back to **EN**.*
 
 > And here is exactly what Sanjay sees on his phone. The advice arrives in his doctor's handwriting, with what it should do: a peak of about one seventy eight instead of one ninety four. He taps got it, and the clinic sees that he read it. Today shows his glucose with the same violet shadow, plain warnings, and his medicines at his own usual dose times. The plus button logs a meal in two taps, and it lands on the clinic's trace. One tap switches to Hindi. He never sees risk scores or other patients.
 
-### 12:55 · 17_register
+### 12:57 · 17_register
 
 *Switch to **Clinic** in the header. Sort the register by *Lowest time in range* and *Low-glucose risk*; open another patient; press **Replay** for ~15 s.*
 
 > Back in the clinic. Every patient now has a full name, so no two people in the register look alike. Sort by lowest time in range, or by low-glucose risk, and open another patient. Press replay, and watch the warnings appear before the spikes, not after them.
 
-### 13:19 · 19_review
+### 13:21 · 19_review
 
 *Click **Mark warning as reviewed**; click an **i** and a **Sources** button.*
 
 > Every warning can be marked as reviewed, which keeps an audit trail. And if a term is unfamiliar, each panel has a small i button, and a Sources button that shows exactly where that number comes from.
 
-### 13:38 · 19b_low
+### 13:41 · 19b_low
 
 *Home → patient app section → **See a low-glucose warning** (Geeta Mukherjee, Mon 09:15). Show the phone, then switch to **Clinic**: LOW LIKELY stamp and reasons.*
 
 > Spikes are only half of the safety story. The same twin forecast, read downwards, warns of lows. Here is Geeta Mukherjee, on glimepiride and basal insulin, on Monday morning. Her glucose is one hundred and seven and falling, and the twin forecasts a dip to about seventy three. The stamp reads low likely, in a deep blue, with the medication listed as a reason. On her phone, the low card moves to the very top. On the held-out week, Chaya warned of seven of ten lows, a median of eighty minutes early, at about one low warning per patient a week.
 
-### 14:27 · 19c_escalate
+### 14:29 · 19c_escalate
 
 *Under *Who acts on this?* pick an owner and 15 min → **Assign and start the clock** → show **WhatsApp** and **Log a call** (log one outcome).*
 
 > A warning only matters if someone acts on it. Under who acts on this, the doctor picks an owner, the care coordinator, the doctor on call or the diabetes educator, and a contact-by time. The owner can open a prefilled WhatsApp message, or log a call and its outcome. If nobody acts in time, the case goes overdue and moves to the doctor on call. Every step is stored.
 
-### 15:00 · 20_rx
+### 15:03 · 20_rx
 
-*Open ℞ **Try advice**; set metformin *Missed* and sleep 5 h; the peak rises; minimise and reopen the dock.*
+*Open ℞ **Advise / Prescribe**; set metformin *Missed* and sleep 5 h; the peak rises; minimise and reopen the dock.*
 
-> The Rx pad opens from the Try advice button at the bottom, like an email draft. It floats over the case sheet, so the forecast stays in view, and it can be minimised or closed. Set metformin to missed, and last night's sleep to five hours. The twin redraws the next four hours, and the peak rises. This is a conversation a doctor can have with a patient, using numbers for this patient's body rather than generic advice.
+> The Rx pad opens from the Advise / Prescribe button in the bottom-right corner, like an email draft, and it can be minimised or closed. Set metformin to missed, and last night's sleep to five hours. The twin redraws the next four hours, and the peak rises. This is a conversation a doctor can have with a patient, using numbers for this patient's body rather than generic advice.
 
-### 15:38 · 20b_outcomes
+### 15:36 · 20b_outcomes
 
 *Header → **Outcomes**: TIR goal, daily TIR, low safety, alert load, funnel. Back to Clinic → **Alerts** control: *Catch more* ↔ *Fewer alerts*.*
 
 > This is what a hospital buyer would look at: clinic outcomes. Patients meeting the time-in-range goal, daily time in range, low-glucose safety, alert load, and a funnel showing whether warnings turned into action, from reviewed to seen by the patient. Back in the clinic, the alerts control sets how readily spike warnings fire: about two point six to four point six warnings per patient a day, for seventy four to ninety eight percent of spikes warned.
 
-### 16:15 · 20c_data
+### 16:13 · 20c_data
 
 *Header → **Data sources**: the four groups; open one parameter.*
 
 > Every number has a source. The data sources page lists all twenty five parameters Chaya monitors, in four groups: wearables, patient app logs, the health record, and values Chaya computes. For each, it shows what it is used for, where this prototype gets it, where a real clinic would get it, its standard code, and how often it arrives.
 
-### 16:45 · 20d_ptour
+### 16:43 · 20d_ptour
 
 ***Guide → Patient app tour**: click through 3–4 steps.*
 
 > And for anyone opening the patient app cold, the guide now includes a patient app tour, eleven short steps through the reading, warnings, dose reminders, logging, advice, the week, the Hindi switch, and a low-glucose example.
 
-### 17:04 · 22_backend
+### 17:02 · 22_backend
 
 *Open `https://chaya-tau.vercel.app/api/health`; optionally local `/docs` and `/api/pipeline/GT-1102/risk?at=2026-09-20T12:45`.*
 
 > Under the hood, this is a real backend. The health endpoint reports the database and its forty five patients. Reviews, escalations, advice, read receipts and patient logs are stored in Supabase Postgres with row-level security. Locally, a FastAPI service runs the full pipeline from a raw FHIR bundle and the wearable stream to a risk with reasons. Everything is open source under the MIT licence.
 
-### 17:36 · 23_safety
+### 17:34 · 23_safety
 
 *Presentation slide 20.*
 
 > Chaya is built to support the doctor, not to replace them. It is decision support only, with a clinician in the loop and no dosing advice. Alerts are merged into episodes, and the clinic sets the threshold, seeing the trade-off as it does. Lows come first on the patient's screen. There is no real patient data in this prototype. When it moves to real records, consent will flow through ABDM, in line with India's Digital Personal Data Protection Act, and the system is FHIR-native from day one.
 
-### 18:18 · 24_roadmap
+### 18:16 · 24_roadmap
 
 *Presentation slide 21.*
 
 > Today, the prototype covers the clinic and a bilingual patient app, for both spikes and lows, live on Vercel and Supabase. Next, we validate on public glucose datasets such as CGMacros and BIG IDEAs. Then a supervised pilot with a partner diabetes clinic. And then we extend: the WhatsApp Business API for escalations, ABDM-consented records, and a hypertension twin.
 
-### 18:47 · 25_close
+### 18:45 · 25_close
 
 *Presentation slide 22.*
 
@@ -240,7 +240,7 @@ Total ≈ 19:13.
 | New in the product | Where it appears in this script |
 |---|---|
 | Header: section links on home; inside, home icon, Clinic / Patient app switcher, Outcomes, Data sources | `13_clinic` |
-| Register and forecast panes pinned to the screen edges; ℞ *Try advice* dock | `13b_tour`, `20_rx` |
+| Register and forecast panes pinned to the screen edges; ℞ *Advise / Prescribe* dock | `13b_tour`, `20_rx` |
 | *Save and send to patient* toast linking to the patient's Advice tab | `16_case_c`, `16b_patient` |
 | Bilingual patient app: advice with read receipt, today, dose reminders, meal logging, Hindi | `16b_patient` |
 | Surnames for every patient | `14_case_a`, `17_register` |

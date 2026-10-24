@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#141d49">
 <meta name="color-scheme" content="light">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23141d49'/%3E%3Cpath d='M21 9.5a8 8 0 1 0 0 13' fill='none' stroke='%23f2f5ef' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M25 12.5a8 8 0 0 1 0 7' fill='none' stroke='%23ad94ff' stroke-width='2.5' stroke-linecap='round' stroke-dasharray='2 3'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="assets/chaya.css?v=20261024e">
+<link rel="stylesheet" href="assets/chaya.css?v=20261024g">
 </head>
 <body>
 
@@ -50,8 +50,7 @@
         <h1 id="h-hero">See the spike <span class="ul">two hours</span> before it happens.</h1>
         <p class="lede">Chaya builds a twin of each patient's metabolism from their health record and wearables. It forecasts glucose two hours ahead, explains every warning, and shows which advice keeps the patient in range.</p>
         <div class="ctas">
-          <a class="btn btn-primary" href="#/clinic">Open the simulated clinic
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="cta-big cta-clinic" href="#/clinic"><span class="cta-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 13v3a5 5 0 0 0 10 0v-2"/><circle cx="20" cy="12" r="2"/></svg></span><span class="cta-tx"><b>Open the simulated clinic</b><small>45 synthetic patients · no sign-in</small></span><svg class="cta-ar" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
           <a class="btn btn-quiet" href="#/clinic?tour=1">Take the 1-minute tour</a>
         </div>
         <p class="fine"><span>45 synthetic patients</span><span>No sign-in</span><span>Built for the Happiest Health Digital Twin Challenge 2026</span></p>
@@ -97,8 +96,7 @@
           <li><b>Advice</b><span>Every note saved on the Rx pad, with the peak it should prevent. The patient taps Got it.</span></li>
         </ul>
         <div class="papp-ctas">
-          <a class="btn btn-primary" href="#/patient/GT-1102">Open the patient app
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="cta-big cta-papp" href="#/patient/GT-1102"><span class="cta-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span><span class="cta-tx"><b>Open the patient app</b><small>Sanjay's phone · English or <span lang="hi">हिंदी</span></small></span><svg class="cta-ar" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
           <a class="btn btn-quiet" href="#/patient/GT-1018?t=0.37">See a low-glucose warning</a>
         </div>
       </div>
@@ -135,7 +133,7 @@
     <div class="wrap">
       <h2 id="h-preview">One screen answers who, why and what to change.</h2>
       <p class="intro">The clinic is laid out like a case file: the register pinned on the left, the case sheet in the middle, the forecast and the patient's twin on the right, and the Rx pad one tap away at the bottom right.</p>
-      <div class="shot"><img src="assets/img/clinic.png" alt="The Chaya clinic: patient register, Sanjay's case sheet with a day of glucose and a violet forecast, a SPIKE LIKELY stamp with its reasons, the patient's twin, and the Try advice button for the Rx pad" loading="lazy" width="1600" height="920"></div>
+      <div class="shot"><img src="assets/img/clinic.png" alt="The Chaya clinic: patient register, Sanjay's case sheet with a day of glucose and a violet forecast, a SPIKE LIKELY stamp with its reasons, the patient's twin, and the Advise / Prescribe button for the Rx pad" loading="lazy" width="1600" height="920"></div>
       <div class="callouts">
         <div><i>Register</i><b>Who needs attention</b><span>Patients ranked by how often Chaya warned about a spike this week.</span></div>
         <div><i>Case sheet</i><b>What is happening</b><span>Glucose, meals, steps and sleep for the day, with the twin's forecast drawn ahead of now.</span></div>
@@ -254,7 +252,7 @@
       </div>
       <div class="panel">
         <details class="fold" id="record-fold">
-          <summary>Health record <span style="font-weight:400;font-size:var(--t-xs);color:var(--ink-3)">static data from the EHR · FHIR R4, each field with its code</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <summary>Health record <span style="font-weight:400;font-size:var(--t-xs);color:var(--ink-3)">last recorded values from the EHR, set against this week's CGM</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
           <div class="record" id="record"></div>
         </details>
       </div>
@@ -282,7 +280,7 @@
     </div>
   </div>
 
-  <button class="rx-fab" id="rx-fab" aria-expanded="false" aria-controls="rxpad"><span class="g" aria-hidden="true">℞</span><span>Try advice</span></button>
+  <button class="rx-fab" id="rx-fab" aria-expanded="false" aria-controls="rxpad"><span class="g" aria-hidden="true">℞</span><span>Advise / Prescribe</span></button>
   <section class="panel rxpad rxdock" id="rxpad" aria-labelledby="h-rx" hidden>
     <div class="rxd-h">
       <span class="g" aria-hidden="true">℞</span><h3 id="h-rx">Rx pad · <span id="rx-who">Sanjay</span></h3>
@@ -382,6 +380,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="assets/vendor/d3.min.js"></script>
-<script src="assets/chaya.js?v=20261024e"></script>
+<script src="assets/chaya.js?v=20261024g"></script>
 </body>
 </html>

@@ -72,7 +72,7 @@
 {
 "id": "13b_tour",
 "visual": "app:tour",
-"text": "First, the one-minute product tour. The register, pinned to the left edge, ranks patients by spike warnings this week. The clock bar replays one synthetic week, and every panel shows only what Chaya knew at that moment. In the middle, the day trace draws glucose in ink and Chaya's two-hour forecast as a violet shadow. Pinned to the right, the stamp escalates from in range to spike likely, with three reasons, above the personal numbers the twin learned. And the Rx pad waits behind the Try advice button, like composing an email."
+"text": "First, the one-minute product tour. The register, pinned to the left edge, ranks patients by spike warnings this week. The clock bar replays one synthetic week, and every panel shows only what Chaya knew at that moment. In the middle, the day trace draws glucose in ink and Chaya's two-hour forecast as a violet shadow. Pinned to the right, the stamp escalates from in range to spike likely, with three reasons, above the personal numbers the twin learned. And the Rx pad waits behind the Advise / Prescribe button in the bottom-right corner, like composing an email."
 },
 {
 "id": "14_case_a",
@@ -117,7 +117,7 @@
 {
 "id": "20_rx",
 "visual": "app:rx",
-"text": "The Rx pad opens from the Try advice button at the bottom, like an email draft. It floats over the case sheet, so the forecast stays in view, and it can be minimised or closed. Set metformin to missed, and last night's sleep to five hours. The twin redraws the next four hours, and the peak rises. This is a conversation a doctor can have with a patient, using numbers for this patient's body rather than generic advice."
+"text": "The Rx pad opens from the Advise / Prescribe button in the bottom-right corner, like an email draft, and it can be minimised or closed. Set metformin to missed, and last night's sleep to five hours. The twin redraws the next four hours, and the peak rises. This is a conversation a doctor can have with a patient, using numbers for this patient's body rather than generic advice."
 },
 {
 "id": "20b_outcomes",

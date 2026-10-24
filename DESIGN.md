@@ -43,7 +43,9 @@ Type: **Hind** (self-hosted, Devanagari only) backs Archivo for Hindi text. **Ar
 - **Home section nav**: `.homenav`, a navy pill floating at the bottom centre; the active section gets the violet gradient pill, which slides (`.hn-ind`, transform + width) on click and follows the scroll position.
 - **Info tooltips**: `.tip`, navy, 320px max, arrow toward the `i` button; shown on hover or focus, pinned on tap; Escape closes. The Guide's glossary drawer is unchanged.
 - **Header modes**: home shows brand, status and Guide only (entry is through the hero CTA and the patient app section right below the hero). In-product (`.mode-app`) adds a home icon, a pill track (navy #090e2c, active pill violet gradient) as a Clinic / Patient app switcher, and *Outcomes* · *Data sources* at the right.
-- **Rx dock**: `.rx-fab` (letterhead navy, violet ℞ chip) fixed bottom right; `.rxdock` opens above it with a navy title bar (minimise, close) and a scrolling body; a full-width bottom sheet under 640px.
+- **Rx dock**: `.rx-fab` (letterhead navy, violet ℞ chip, label *Advise / Prescribe to <name>*) fixed in the bottom-right corner; `.rxdock` opens above it with a navy title bar (minimise, close) and a scrolling body; a full-width bottom sheet under 640px.
+- **Health record** (`.rk-*`): a key distinguishes point in time (navy dot) from trend (violet sparkline). Lab/CGM pairs split into a white point half and a violet-tint trend half; range rows show the target band in green (#b9dbb3) and the reading as a 4×16 mark, green when in target, amber when not, always with a word.
+- **Entry CTAs** (`.cta-big`): 64px tall, icon chip, two-line label; clinic in letterhead navy, patient app in a violet gradient; a soft violet ring pulses every 2.4 s (offset between the two), paused on hover, a static ring under reduced motion.
 - **Action toast**: `toast(msg, {label, href})` adds a violet-soft link button and stays for 9 s.
 - **Names**: every synthetic patient has a surname (`scripts/surnames.json`); full names in lists, headings and pickers, first names in greetings.
 

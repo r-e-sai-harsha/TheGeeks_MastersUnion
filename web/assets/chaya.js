@@ -494,7 +494,7 @@ const Clinic = {
     return i;
   },
   renderHead(P) {
-    const e = P.ehr; $("#rx-who").textContent = fullName(P); $("#rx-fab span:last-child").textContent = `Try advice for ${P.name}`;
+    const e = P.ehr; $("#rx-who").textContent = fullName(P); $("#rx-fab span:last-child").textContent = `Advise / Prescribe to ${P.name}`; $("#rx-fab").setAttribute("aria-label", `Advise or prescribe to ${fullName(P)}`);
     const rx = [["on_metformin", "Metformin"], ["on_sulfonylurea", "Glimepiride"], ["on_dpp4", "Teneligliptin"], ["on_sglt2", "Dapagliflozin"], ["on_basal_insulin", "Glargine"]].filter(r => e[r[0]]).map(r => r[1]);
     const dx = [P.condition === "T2D" ? `Type 2 diabetes · ${e.diabetes_years} y` : "Prediabetes", e.hypertension && "Hypertension", e.dyslipidemia && "Dyslipidaemia", e.nafld && "Fatty liver"].filter(Boolean);
     $("#case-head").innerHTML = `<div><div class="pid">${P.pid} · synthetic</div><h2>${esc(fullName(P))}</h2><div class="who">${P.age} · ${P.sex === "F" ? "Female" : "Male"} · ${esc(P.city)} · ${e.vegetarian ? "Vegetarian" : "Non-vegetarian"} · BMI ${e.bmi}</div></div>
@@ -510,14 +510,82 @@ const Clinic = {
       tile("Spike warnings", k.alerts, "", "this week, 2 h ahead");
   },
   renderRecord(P) {
-    const e = P.ehr;
-    const items = [["HbA1c", `${e.hba1c_pct}%`, "LOINC 4548-4", "hba1c"], ["Fasting glucose", `${e.fasting_glucose_mgdl} mg/dL`, "LOINC 1558-6", "fpg"],
-      ["BMI · waist", `${e.bmi} · ${e.waist_cm} cm`, "LOINC 39156-5 · 8280-0", "body"], ["Blood pressure", `${e.systolic_bp}/${e.diastolic_bp} mmHg`, "LOINC 8480-6 · 8462-4", "bp"],
-      ["TG · HDL · LDL", `${e.triglycerides_mgdl} · ${e.hdl_mgdl} · ${e.ldl_mgdl}`, "LOINC 2571-8 · 2085-9 · 13457-7", "lipids"], ["eGFR · ALT", `${e.egfr} · ${e.alt_u_l}`, "LOINC 33914-3 · 1742-6", "kidney"],
-      ["TCF7L2 rs7903146", `${e.tcf7l2_rs7903146}${e.tcf7l2_rs7903146.includes("T") ? " (risk allele)" : ""}`, "Genetic test report", "gene"],
-      ["Family history", e.family_history_t2d ? "Type 2 diabetes" : "None recorded", "FamilyMemberHistory", "history"], ["Smoker", e.smoker ? "Yes" : "No", "LOINC 72166-2", "history"],
-      ["Height · weight", `${e.height_cm} cm · ${e.weight_kg} kg`, "LOINC 8302-2 · 29463-7", "body"]];
-    $("#record").innerHTML = items.map(([a, b, c, id]) => `<div><div class="l">${a}</div><div class="v">${esc(b)}</div><button class="code" data-src="${id}" title="Where this comes from">${c}</button></div>`).join("");
+    const e = P.ehr, F = P.sex === "F", n1 = v => (Math.round(v * 10) / 10).toString();
+    // [name, code, src, value, unit, target text, scale lo, hi, band a, b, ok, status]
+    const bar = (lo, hi, a, b, v) => { const pc = x => Math.max(0, Math.min(100, (x - lo) / (hi - lo) * 100)); return [pc(a), pc(b), pc(v)]; };
+    const bpHi = e.systolic_bp >= 130 || e.diastolic_bp >= 80;
+    const bmiS = e.bmi < 18.5 ? "Underweight" : e.bmi < 23 ? "In range" : e.bmi < 25 ? "Overweight" : "Obese";
+    const hdlT = F ? 50 : 40, waistT = F ? 80 : 90;
+    const rows = [
+      ["Blood pressure", "LOINC 8480-6 · 8462-4", "bp", `${e.systolic_bp}/${e.diastolic_bp}`, "mmHg", "target under 130/80", bar(90, 180, 90, 130, e.systolic_bp), !bpHi, bpHi ? "High" : "At target"],
+      ["LDL cholesterol", "LOINC 13457-7", "lipids", e.ldl_mgdl, "mg/dL", "target under 100", bar(40, 200, 40, 100, e.ldl_mgdl), e.ldl_mgdl < 100, e.ldl_mgdl < 100 ? "At target" : "High"],
+      ["HDL cholesterol", "LOINC 2085-9", "lipids", e.hdl_mgdl, "mg/dL", `target above ${hdlT} (${F ? "women" : "men"})`, bar(20, 80, hdlT, 80, e.hdl_mgdl), e.hdl_mgdl > hdlT, e.hdl_mgdl > hdlT ? "At target" : "Low"],
+      ["Triglycerides", "LOINC 2571-8", "lipids", e.triglycerides_mgdl, "mg/dL", "target under 150", bar(50, 300, 50, 150, e.triglycerides_mgdl), e.triglycerides_mgdl < 150, e.triglycerides_mgdl < 150 ? "At target" : "High"],
+      ["BMI", "LOINC 39156-5", "body", n1(e.bmi), "kg/m²", "Asian range 18.5–22.9", bar(16, 34, 18.5, 22.95, e.bmi), bmiS === "In range", bmiS],
+      ["Waist", "LOINC 8280-0", "body", n1(e.waist_cm), "cm", `Indian ${F ? "women" : "men"} under ${waistT}`, bar(55, 125, 55, waistT, e.waist_cm), e.waist_cm < waistT, e.waist_cm < waistT ? "In range" : "High"],
+      ["eGFR", "LOINC 33914-3", "kidney", Math.round(e.egfr), "mL/min", "normal 90 or above", bar(30, 130, 90, 130, e.egfr), e.egfr >= 90, e.egfr >= 90 ? "Normal" : e.egfr >= 60 ? "Mildly reduced" : "Reduced"],
+      ["ALT", "LOINC 1742-6", "kidney", Math.round(e.alt_u_l), "U/L", "lab range up to 40", bar(0, 120, 0, 40, e.alt_u_l), e.alt_u_l <= 40, e.alt_u_l <= 40 ? "Normal" : "Raised"],
+    ];
+    const a1Ok = e.hba1c_pct < 7, fOk = e.fasting_glucose_mgdl >= 80 && e.fasting_glucose_mgdl <= 130;
+    const gene = { CC: "CC · no risk allele", CT: "CT · one risk allele", TT: "TT · two risk alleles" }[e.tcf7l2_rs7903146] || e.tcf7l2_rs7903146;
+    const conds = [e.hypertension && "Hypertension", e.dyslipidemia && "Dyslipidaemia", e.nafld && "Fatty liver (NAFLD)"].filter(Boolean).join(", ") || "None recorded";
+    const pt = `<span class="rk-dot" aria-hidden="true"></span>`, tr = `<svg class="rk-tr" width="20" height="9" viewBox="0 0 22 10" aria-hidden="true"><path d="M1 7 L6 3 L11 6 L16 2 L21 4"/></svg>`;
+    const code = (c, id) => `<button class="code" data-src="${id}" title="Where this comes from">${c}</button>`;
+    $("#record").innerHTML = `
+      <div class="rk-key"><span>${pt}Point in time · one reading in the record</span><span>${tr}Trend · this week's CGM, moves with the clock</span></div>
+      <div class="rk-h"><h4>Glucose control</h4><span>The lab gives one number; the sensor shows the week</span></div>
+      <div class="rk-pairs">
+        <article class="rk-pair">
+          <div class="rk-pt"><div class="rk-l">${pt}HbA1c · lab</div><div class="rk-big num">${e.hba1c_pct}<small> %</small></div>
+            <div class="rk-s ${a1Ok ? "ok" : "off"}">${a1Ok ? "At target · under 7%" : "Above target · 7% or more"}</div>${code("LOINC 4548-4", "hba1c")}</div>
+          <div class="rk-tw" id="rk-gmi"></div>
+        </article>
+        <article class="rk-pair">
+          <div class="rk-pt"><div class="rk-l">${pt}Fasting glucose · lab</div><div class="rk-big num">${Math.round(e.fasting_glucose_mgdl)}<small> mg/dL</small></div>
+            <div class="rk-s ${fOk ? "ok" : "off"}">${fOk ? "At target · 80–130" : e.fasting_glucose_mgdl > 130 ? "Above target · 80–130" : "Below target · 80–130"}</div>${code("LOINC 1558-6", "fpg")}</div>
+          <div class="rk-tw" id="rk-wake"></div>
+        </article>
+      </div>
+      <div class="rk-h"><h4>Last recorded values</h4><span>Point in time · green is the target range, the mark is this reading</span></div>
+      <div class="rk-rows">${rows.map(([nm, c, id, v, u, t, [ba, bb, pv], ok, st]) => `<div class="rk-row">
+        <div class="rk-n"><b>${nm}</b>${code(c, id)}</div>
+        <div class="rk-bar"><div class="rk-track"><i class="rk-band" style="left:${ba}%;width:${bb - ba}%"></i><i class="rk-mark ${ok ? "ok" : "off"}" style="left:${pv}%"></i></div><span class="rk-t">${t}</span></div>
+        <div class="rk-v"><span class="num">${v}<small> ${u}</small></span><span class="rk-s ${ok ? "ok" : "off"}">${st}</span></div></div>`).join("")}</div>
+      <div class="rk-h"><h4>Background</h4><span>Rarely changes; it sets the twin's starting estimate</span></div>
+      <dl class="rk-bg">
+        <div><dt>Diagnosis</dt><dd>${P.condition === "T2D" ? `Type 2 diabetes · ${e.diabetes_years} y` : "Prediabetes"}</dd></div>
+        <div><dt>Other conditions</dt><dd>${conds}</dd></div>
+        <div><dt>Family history</dt><dd>${e.family_history_t2d ? "Type 2 diabetes" : "None recorded"} ${code("FamilyMemberHistory", "history")}</dd></div>
+        <div><dt>TCF7L2 rs7903146</dt><dd>${gene} ${code("Genetic test", "gene")}</dd></div>
+        <div><dt>Smoking · diet</dt><dd>${e.smoker ? "Smoker" : "Non-smoker"} · ${e.vegetarian ? "vegetarian" : "non-vegetarian"}</dd></div>
+        <div><dt>Height · weight</dt><dd>${n1(e.height_cm)} cm · ${n1(e.weight_kg)} kg ${code("LOINC 8302-2 · 29463-7", "body")}</dd></div>
+      </dl>`;
+    this.renderRecTrend(P);
+  },
+  /* Trend half of the glucose pairs: GMI and waking (6–7 am) glucose from the CGM, up to the replay clock. */
+  renderRecTrend(P) {
+    if (!P || !$("#rk-gmi")) return;
+    const k = S.day * 288 + S.slot * 3, e = P.ehr, mean = a => { const v = a.filter(x => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+    const gmiOf = m => m == null ? null : 3.31 + 0.02392 * m;
+    const days = [], wake = [];
+    for (let d = 0; d <= S.day; d++) {
+      days.push(gmiOf(mean(P.cgm.slice(d * 288, Math.min(d * 288 + 288, k + 1)))));
+      wake.push(k >= d * 288 + 84 ? mean(P.cgm.slice(d * 288 + 72, d * 288 + 84)) : null);
+    }
+    const gmi = gmiOf(mean(P.cgm.slice(0, k + 1)));
+    const spark = (vals, span, label) => { const vv = vals.filter(v => v != null); if (!vv.length) return ""; const mid = (Math.max(...vv) + Math.min(...vv)) / 2, half = Math.max(span, Math.max(...vv) - Math.min(...vv)) / 2 * 1.15, lo = mid - half, hi = mid + half; const pts = vals.map((v, i) => v == null ? null : [i * 20, 26 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * 24]).filter(Boolean);
+      if (!pts.length) return "";
+      const last = pts[pts.length - 1];
+      return `<svg class="rk-sp" width="140" height="30" viewBox="-3 -3 126 34" role="img" aria-label="${label}"><path d="M${pts.map(p => p.join(" ")).join(" L")}"/><circle cx="${last[0]}" cy="${last[1]}" r="3"/></svg>`; };
+    const tr = `<svg class="rk-tr" width="20" height="9" viewBox="0 0 22 10" aria-hidden="true"><path d="M1 7 L6 3 L11 6 L16 2 L21 4"/></svg>`;
+    const thru = `Mon–${DAYS[S.day]}`, d1 = gmi == null ? null : Math.round((gmi - e.hba1c_pct) * 10) / 10;
+    $("#rk-gmi").innerHTML = gmi == null ? `<div class="rk-l">${tr}GMI · CGM</div><div class="rk-big num">–</div>` :
+      `<div class="rk-l">${tr}GMI · CGM, ${thru}</div><div class="rk-big num">${gmi.toFixed(1)}<small> %</small></div>${spark(days, 0.6, `Daily GMI: ${days.map(v => v == null ? "no data" : v.toFixed(1)).join(", ")}`)}
+       <div class="rk-s ${Math.abs(d1) < 0.5 ? "ok" : "off"}">${Math.abs(d1) < 0.5 ? "Agrees with the lab HbA1c" : d1 > 0 ? `${d1.toFixed(1)} above the lab: the sensor sees more than the HbA1c` : `${(-d1).toFixed(1)} below the lab HbA1c`}</div>`;
+    const wv = wake.filter(v => v != null), wm = wv.length ? Math.round(mean(wv)) : null, above = wv.filter(v => v > 130).length;
+    $("#rk-wake").innerHTML = wm == null ? `<div class="rk-l">${tr}Waking glucose · CGM 6–7 am</div><div class="rk-big num">–</div><div class="rk-s">No morning reading yet this week</div>` :
+      `<div class="rk-l">${tr}Waking glucose · CGM 6–7 am</div><div class="rk-big num">${wm}<small> avg</small></div>${spark(wake, 30, `Waking glucose each day: ${wake.map(v => v == null ? "not yet" : Math.round(v)).join(", ")}`)}
+       <div class="rk-s ${above ? "off" : "ok"}">${above ? `Above 130 on ${above} of ${wv.length} morning${wv.length > 1 ? "s" : ""}` : `In target on all ${wv.length} morning${wv.length > 1 ? "s" : ""}`}</div>`;
   },
 
   // ---------------------------------------------------------------- clock
@@ -541,7 +609,7 @@ const Clinic = {
     $("#tslider").setAttribute("aria-valuetext", `${DAYS_LONG[S.day]} ${fmtT(S.slot * 15)}`);
     if (!this.P()) return;
     Thr.apply(this.P(), Thr.get(this.meta));
-    this.renderTrace(); this.renderWeek(); this.renderRisk(); this.renderTwin(); this.renderRx();
+    this.renderTrace(); this.renderWeek(); this.renderRisk(); this.renderTwin(); this.renderRx(); this.renderRecTrend(this.P());
   },
 
   // ---------------------------------------------------------------- day trace
@@ -1086,7 +1154,7 @@ const TOUR = Object.assign([
   { sel: "#risk", title: "The stamp on the slip", body: () => { const P = Clinic.P(), s = Clinic.status(P, Clinic.idx(P)); return `Right now Sanjay's slip reads <b>${s.main}</b> (${s.sub}). Stamps go from In range to Watch to Spike likely, so the urgent case is visible at a glance.`; } },
   { sel: "#why-wrap", title: "Every warning has reasons", body: "The three biggest drivers behind the score, in plain words: a meal just logged, the twin's projected peak, low activity, short sleep, a missed dose." },
   { sel: "#twin", title: "The patient's twin", body: "Chaya tuned these numbers to Sanjay on his first seven days. The violet mark is the twin; the grey tick is what the health record alone suggested. The gap is why a personal twin matters." },
-  { sel: "#rxpad", title: "Try advice before you give it", body: "The ℞ button at the bottom right opens the Rx pad, like composing an email. Pick a meal, a walk, last night's sleep or a missed metformin dose; the twin redraws the next four hours for this body. Save and send it to the patient's app.", before: () => Clinic.openRx() },
+  { sel: "#rxpad", title: "Try advice before you give it", body: "The ℞ Advise / Prescribe button at the bottom right opens the Rx pad, like composing an email. Pick a meal, a walk, last night's sleep or a missed metformin dose; the twin redraws the next four hours for this body. Save and send it to the patient's app.", before: () => Clinic.openRx() },
   { sel: "#help-menu", title: "Help is always here", body: "Reopen this tour, walk through Sanjay's case, see <b>where the data comes from</b>, or open <b>What's what</b> for every term. The <b>i</b> buttons explain a panel; <b>Sources</b> buttons show where its numbers come from." },
 ], { label: "Product tour", doneLabel: "Start exploring" });
 
