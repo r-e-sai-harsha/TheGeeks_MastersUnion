@@ -5,11 +5,16 @@
 @page{size:1600px 880px;margin:0}
 :root{--ink:#18225a;--muted:#4d5683;--line:#d5dfd0;--bg:#edf2e9;--twin:#6a44c9;--twin-soft:#e7e0f7;--spike:#bd3326;--amber:#b7791f;--amber-soft:#f6ecd8;--blue:#33507a;--blue-soft:#e3e9f3}
 *{box-sizing:border-box}
-body{margin:0;width:1600px;height:880px;background:var(--bg);font-family:"Archivo",sans-serif;color:var(--ink);padding:44px 52px;position:relative}
+body{margin:0;width:1600px;background:var(--bg);font-family:"Archivo",sans-serif;color:var(--ink)}
+.page{width:1600px;height:880px;padding:44px 52px;position:relative;overflow:hidden;break-after:page;page-break-after:always}
+.page:last-child{break-after:auto;page-break-after:auto}
+.pg{position:absolute;right:52px;top:50px;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted);letter-spacing:.08em}
 h1{font-family:"Archivo",sans-serif;font-stretch:74%;font-weight:800;font-size:38px;margin:0}
 h1 b{color:var(--twin);font-weight:600}
 .sub{color:var(--muted);font-size:16px;margin-top:4px}
-.cols{display:grid;grid-template-columns:270px 40px 230px 40px 330px 40px 250px 40px 230px;margin-top:34px;align-items:stretch}
+.cols{display:grid;grid-template-columns:270px 40px 230px 40px 330px 40px 250px 40px 230px;margin-top:24px;align-items:stretch}
+.cols .col:nth-child(7) .box{padding:10px 14px}
+.cols .col:nth-child(7){gap:9px}
 .col{display:flex;flex-direction:column;gap:12px}
 .ch{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);height:20px}
 .box{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}
@@ -29,9 +34,30 @@ h1 b{color:var(--twin);font-weight:600}
 .bottom .box{background:transparent}
 .tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:11px;padding:1px 7px;border-radius:12px;background:#fff;border:1px solid var(--line);margin:3px 4px 0 0;color:var(--ink)}
 .out{border-top:4px solid var(--spike)}
+.low{border-top:4px solid #0e6688}
+.new{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--twin);border-radius:10px;padding:1px 7px;margin-left:6px;vertical-align:2px;font-stretch:100%;font-weight:500}
+/* page 2 */
+.p2{display:grid;grid-template-columns:1.25fr 1fr;gap:34px;margin-top:28px}
+.loopwrap{position:relative}
+.lane{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.lane .box{min-height:150px}
+.lh{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.n{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--twin);display:block;margin-bottom:4px}
+.down{display:flex;justify-content:space-around;height:28px;align-items:center;color:var(--muted)}
+.dep{display:grid;gap:12px}
+.deprow{display:grid;grid-template-columns:1fr 34px 1fr 34px 1fr;align-items:center}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl td{padding:5px 0;border-top:1px solid var(--line);color:var(--muted);vertical-align:top}
+.tbl td:first-child{font-family:"JetBrains Mono",monospace;color:var(--ink);width:118px;font-size:12px}
+.news{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.news .box{padding:11px 14px}
+.news .box h3{font-size:14.5px;margin-bottom:3px}
+.news .box p{font-size:12.5px}
 </style></head><body>
+<section class="page">
+<span class="pg">1 / 2 · PIPELINE</span>
 <h1><span style="text-transform:uppercase;font-weight:800;font-stretch:72%">Chaya</span> <span style="font-family:Kalam;color:var(--twin);font-weight:400">छाया</span> · system architecture</h1>
-<div class="sub">Two data streams in, one calibrated virtual patient, 2-hour spike prediction and what-if simulation out</div>
+<div class="sub">Two data streams in, one calibrated virtual patient; 2-hour spike and low-glucose warnings, what-if simulation and a patient app out. Patient logs flow back in.</div>
 <div class="cols">
   <div class="col">
     <div class="ch">1 · Data streams</div>
@@ -39,7 +65,7 @@ h1 b{color:var(--twin);font-weight:600}
       <p>FHIR R4 Bundle per patient</p>
       <ul><li>Demographics, city, diet</li><li>Diagnoses (SNOMED): T2D, HTN, NAFLD</li><li>Labs (LOINC): HbA1c, FPG, lipids, eGFR</li><li>Medications: metformin, glimepiride, DPP-4i, SGLT2i, insulin</li><li>Genetics: TCF7L2 rs7903146</li></ul></div>
     <div class="box dyn"><h3>Dynamic / real-time: wearables</h3>
-      <ul><li>CGM glucose, every 5 min</li><li>Steps, heart rate</li><li>Nightly HRV (RMSSD), sleep stages</li><li>Meal log (Indian dishes, carbs, GI)</li><li>Medication log</li></ul></div>
+      <ul><li>CGM glucose, every 5 min</li><li>Steps, heart rate</li><li>Nightly HRV (RMSSD), sleep stages</li><li>Meal and dose logs, now from the patient app</li></ul></div>
     <div class="box"><h3>Synthetic cohort</h3><p>150 Indian patients × 14 days · 604,800 sensor rows · physiology-driven generator. No real patient data.</p></div>
   </div>
   <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28m-8-8 8 8-8 8" fill="none" stroke="#4d5683" stroke-width="2"/></svg></div>
@@ -72,19 +98,76 @@ h1 b{color:var(--twin);font-weight:600}
       <span class="tag">18 EHR</span><span class="tag">25 wearable</span><span class="tag">11 twin</span></div>
     <div class="box"><h3>Spike classifier</h3><p>LightGBM · P(glucose &gt; 180 mg/dL within 2 h)</p></div>
     <div class="box"><h3>Glucose regressor</h3><p>LightGBM · glucose value at +2 h</p></div>
-    <div class="box"><h3>Explanations</h3><p>Tree SHAP grouped into clinical drivers: meal, routine, sleep, activity, medication, physiology</p></div>
+    <div class="box low"><h3>Low-glucose risk<span class="new">new</span></h3><p>Twin forecast &lt; 80 mg/dL in 2 h → <i>Low likely</i>; CGM &lt; 70 → <i>Low now</i>. 7 of 10 lows warned, median 80 min ahead</p></div>
+    <div class="box"><h3>Explanations</h3><p>Tree SHAP → clinical drivers: meal, routine, sleep, activity, medication, physiology</p></div>
   </div>
   <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28m-8-8 8 8-8 8" fill="none" stroke="#4d5683" stroke-width="2"/></svg></div>
   <div class="col">
     <div class="ch">5 · Delivery</div>
-    <div class="box out"><h3>Vercel + Supabase</h3><p class="mono">API function · /patients<br>/notes · /alerts · /meta</p><p>Supabase Postgres with row-level security</p></div>
-    <div class="box out"><h3>Chaya web app</h3><ul><li>Home with live forecast slip</li><li>Register, case sheet, stamps</li><li>Reasons, twin physiology</li><li>Rx pad what-if + case notes</li><li>Product tour, case walkthrough</li></ul></div>
-    <div class="box"><h3>Patient nudge <span style="color:var(--muted);font-weight:400">(next)</span></h3><p>“Walk 15 min after lunch today”</p></div>
+    <div class="box out"><h3>Simulated clinic</h3><ul><li>Pinned register, case sheet, stamps</li><li>Reasons, twin physiology</li><li>Escalation: owner, WhatsApp, call log</li><li>Rx pad dock: what-if → save &amp; send</li><li>Alert threshold · Outcomes page</li></ul></div>
+    <div class="box out"><h3>Patient app<span class="new">new</span></h3><ul><li>English · हिंदी</li><li>Glucose + 2 h shadow, plain warnings</li><li>Dose reminders, meal logging</li><li>Doctor's advice with read receipt</li></ul></div>
+    <div class="loop" style="text-align:left">↺ meals and doses logged in the app feed the twin's inputs</div>
   </div>
 </div>
 <div class="bottom">
   <div class="box"><h3>Evaluation protocol</h3><p>Patient-level split 105 train / 45 held-out. Temporal split: days 1–7 calibrate, days 8–14 predict. Threshold chosen on training folds only.</p></div>
   <div class="box"><h3>Privacy by design</h3><p>Synthetic data only (DPDP Act 2023 / HIPAA sandbox rules). FHIR-native so it can plug into ABDM-consented records later.</p></div>
-  <div class="box"><h3>Stack</h3><p>Python · NumPy/Numba · SciPy · LightGBM · FastAPI (local pipeline) · Vercel functions · Supabase Postgres · vanilla JS + D3</p></div>
+  <div class="box"><h3>Stack</h3><p>Python · NumPy/Numba · SciPy · LightGBM · FastAPI (local pipeline) · Vercel functions (Mumbai) · Supabase Postgres · vanilla JS + D3</p></div>
 </div>
+</section>
+
+<section class="page">
+<span class="pg">2 / 2 · CARE LOOP &amp; DEPLOYMENT</span>
+<h1>From a warning to an action the patient sees</h1>
+<div class="sub">What happens after the twin raises a warning, where each step is stored, and how the live prototype is deployed</div>
+<div class="p2">
+  <div>
+    <div class="lh">The closed care loop</div>
+    <div class="lane">
+      <div class="box out"><span class="n">1 · warn</span><h3>Twin + model</h3><p>Spike likely or Low likely, 2 h ahead, with three reasons. Threshold set by the clinic (2.6–4.6 warnings per patient a day).</p></div>
+      <div class="box"><span class="n">2 · review</span><h3>Clinician</h3><p>Reads the stamp and reasons; marks the warning reviewed.</p><p class="mono" style="margin-top:6px">alert_reviews</p></div>
+      <div class="box"><span class="n">3 · escalate</span><h3>Owner + due time</h3><p>Care coordinator, doctor on call or educator. Prefilled WhatsApp or a call log; overdue moves to the doctor on call.</p><p class="mono" style="margin-top:6px">escalations</p></div>
+      <div class="box twin"><span class="n">4 · advise</span><h3>Rx pad</h3><p>Test a meal, walk, sleep or missed dose on the twin, then save and send.</p><p class="mono" style="margin-top:6px">case_notes</p></div>
+    </div>
+    <div class="down" style="justify-content:flex-start;gap:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--twin)">↓ then on the patient's phone, and back to the clinic</div>
+    <div class="lane">
+      <div class="box out"><span class="n">5 · reach</span><h3>Patient app</h3><p>Advice arrives in the doctor's hand with the peak it should prevent. A toast in the clinic links straight to it.</p></div>
+      <div class="box"><span class="n">6 · read</span><h3>Read receipt</h3><p>Patient taps Got it; the clinic sees when.</p><p class="mono" style="margin-top:6px">case_notes.ack_at</p></div>
+      <div class="box"><span class="n">7 · log</span><h3>Meals and doses</h3><p>Logged in two taps; land on the clinic's day trace and the twin's inputs.</p><p class="mono" style="margin-top:6px">patient_logs</p></div>
+      <div class="box"><span class="n">8 · measure</span><h3>Clinic outcomes</h3><p>Time in range, low safety, alert load and the funnel warnings → reviewed → escalated → contacted → advice → seen.</p></div>
+    </div>
+    <div class="lh" style="margin-top:22px">What is new in this version</div>
+    <div class="news">
+      <div class="box low"><h3>Low-glucose warnings</h3><p>Same twin, read downwards; shown first on the patient's phone with the 15 g sugar rule.</p></div>
+      <div class="box"><h3>Escalation and outcomes</h3><p>Every warning has an owner; the buyer sees whether warnings became action.</p></div>
+      <div class="box"><h3>Bilingual patient app</h3><p>English and Hindi, dose reminders, logging, advice read receipts, its own 11-step tour.</p></div>
+      <div class="box"><h3>Clinic workspace</h3><p>Panes pinned to the screen edges, Rx pad as a compose-style dock, clear home / clinic / patient navigation, 25 data sources documented.</p></div>
+    </div>
+  </div>
+  <div class="dep">
+    <div class="lh">Live deployment</div>
+    <div class="deprow">
+      <div class="box"><h3>Browser</h3><p>Static app · D3 · twin simulator in JS (matches Python to 0.1 mg/dL)</p></div>
+      <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28m-8-8 8 8-8 8" fill="none" stroke="#4d5683" stroke-width="2"/></svg></div>
+      <div class="box out"><h3>Vercel API</h3><p>Node function, Mumbai (bom1)</p></div>
+      <div class="arrow"><svg viewBox="0 0 40 40"><path d="M4 20h28m-8-8 8 8-8 8" fill="none" stroke="#4d5683" stroke-width="2"/></svg></div>
+      <div class="box static"><h3>Supabase</h3><p>Postgres, row-level security, column-level write grants</p></div>
+    </div>
+    <div class="box">
+      <h3>Tables</h3>
+      <table class="tbl">
+        <tr><td>patients</td><td>register: 45 synthetic patients, first name + surname</td></tr>
+        <tr><td>cases</td><td>replay week per patient as JSONB: CGM, meals, predictions, twin state</td></tr>
+        <tr><td>case_notes</td><td>Rx advice and its projection; ack_at when read</td></tr>
+        <tr><td>alert_reviews</td><td>warnings marked reviewed</td></tr>
+        <tr><td>escalations</td><td>owner, due time, channel, outcome, status</td></tr>
+        <tr><td>patient_logs</td><td>meals and doses from the patient app</td></tr>
+        <tr><td>meta</td><td>threshold, metrics, meal catalogue, population</td></tr>
+      </table>
+    </div>
+    <div class="box"><h3>Offline fallback</h3><p>If the API is unreachable after a cold-start wait and one retry, the app says <i>Offline demo</i> and runs from bundled data; changes stay in the browser.</p></div>
+    <div class="box"><h3>Offline compute</h3><p><span class="mono">run_all.sh</span>: data → twins → LightGBM → metrics → web data. <span class="mono">build_outcomes.js</span>: low flags, threshold curve, daily time in range, using the browser's own simulator.</p></div>
+  </div>
+</div>
+</section>
 </body></html>

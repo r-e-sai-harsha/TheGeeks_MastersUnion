@@ -36,7 +36,7 @@ img.fig{display:block;max-width:100%;border-radius:8px}
 <section class="s dark">
   <div class="eyebrow">Digital Twin Challenge 2026 · Happiest Health · Simulated demo</div>
   <h1 style="font-size:120px;text-transform:uppercase;font-weight:800;font-stretch:70%;letter-spacing:.02em">Chaya <span style="font-family:Kalam;font-size:64px;color:var(--twin-2);text-transform:none;letter-spacing:0">छाया</span></h1>
-  <div style="font-size:30px;margin-top:18px;max-width:820px;line-height:1.3">The shadow that walks two hours ahead: a personal digital twin that sees a glucose spike <b style="color:var(--twin-2);font-weight:600">2 hours</b> before it happens.</div>
+  <div style="font-size:30px;margin-top:18px;max-width:820px;line-height:1.3">The shadow that walks two hours ahead: a personal digital twin that sees a glucose spike <b style="color:var(--twin-2);font-weight:600">2 hours</b> before it happens, and puts the doctor and the patient on the same page.</div>
   <svg viewBox="0 0 1136 250" style="position:absolute;left:72px;bottom:80px;width:1136px;height:250px">
     <rect x="0" y="70" width="1136" height="120" fill="#24306a"/>
     <text x="1130" y="66" text-anchor="end" font-family="JetBrains Mono" font-size="12" fill="#a3aad0">180 mg/dL</text>
@@ -125,9 +125,9 @@ img.fig{display:block;max-width:100%;border-radius:8px}
     <text x="560" y="280" text-anchor="middle" font-family="JetBrains Mono" font-size="12" fill="#6a44c9">+ habit model · unlogged-meal detector</text>
     <path d="M712 200 L800 200" fill="none" stroke="#4d5683" stroke-width="2" marker-end="url(#a)"/>
     <g font-family="Archivo" fill="#18225a">
-      <rect x="810" y="40" width="326" height="92" rx="10" fill="#fff" stroke="#d5dfd0"/><text x="830" y="78" font-family="Archivo" font-weight="800" font-stretch="74%" font-size="22">Predict</text><text x="830" y="106" font-size="15" fill="#4d5683">P(spike &gt; 180 in 2 h) every 15 min</text>
+      <rect x="810" y="40" width="326" height="92" rx="10" fill="#fff" stroke="#d5dfd0"/><text x="830" y="78" font-family="Archivo" font-weight="800" font-stretch="74%" font-size="22">Predict</text><text x="830" y="106" font-size="15" fill="#4d5683">spikes &gt; 180 and lows &lt; 70, 2 h ahead</text>
       <rect x="810" y="154" width="326" height="92" rx="10" fill="#fff" stroke="#d5dfd0"/><text x="830" y="192" font-family="Archivo" font-weight="800" font-stretch="74%" font-size="22">Explain</text><text x="830" y="220" font-size="15" fill="#4d5683">meal, routine, sleep, activity, dose</text>
-      <rect x="810" y="268" width="326" height="92" rx="10" fill="#fff" stroke="#d5dfd0"/><text x="830" y="306" font-family="Archivo" font-weight="800" font-stretch="74%" font-size="22">Simulate</text><text x="830" y="334" font-size="15" fill="#4d5683">what if: meal swap, walk, sleep, metformin</text>
+      <rect x="810" y="268" width="326" height="92" rx="10" fill="#fff" stroke="#d5dfd0"/><text x="830" y="306" font-family="Archivo" font-weight="800" font-stretch="74%" font-size="22">Simulate</text><text x="830" y="334" font-size="15" fill="#4d5683">what if, then send it to the patient</text>
     </g>
   </svg>
   <div class="foot"><span>Chaya</span><span>04</span></div>
@@ -218,9 +218,9 @@ img.fig{display:block;max-width:100%;border-radius:8px}
 
 <!-- 11 DASHBOARD -->
 <section class="s" style="padding:40px 56px">
-  <div class="eyebrow">The doctor's view</div>
+  <div class="eyebrow">The doctor's view · Sanjay Krishnan, Sunday 12:45</div>
   <img class="fig" src="shots/console.png" style="width:1168px;height:590px;object-fit:cover;object-position:top left;border:1px solid var(--line);box-shadow:0 10px 40px rgba(20,33,43,.12)">
-  <div class="foot"><span>Cohort triage · day replay with twin forecast · risk and reasons · twin physiology · what-if</span><span>11</span></div>
+  <div class="foot"><span>Register pinned left · case sheet with twin forecast · Next 2 hours and twin pinned right · ℞ Try advice</span><span>11</span></div>
 </section>
 
 <!-- 12 WHY -->
@@ -258,16 +258,126 @@ img.fig{display:block;max-width:100%;border-radius:8px}
   <div class="foot"><span>Peak glucose over the next 4 h, simulated by the calibrated twin</span><span>13</span></div>
 </section>
 
+<!-- LOW GLUCOSE -->
+<section class="s">
+  <div class="eyebrow">Safety · new</div>
+  <h2>The same twin, read downwards, warns of lows.</h2>
+  <div class="row" style="margin-top:26px;align-items:flex-start;gap:26px">
+    <div style="display:grid;gap:18px;width:300px">
+      <div class="card stat"><div class="n" style="color:#0e6688">7 of 10</div><div class="l">held-out lows warned within 2 h</div></div>
+      <div class="card stat"><div class="n">80 min</div><div class="l">median warning before glucose fell below 70</div></div>
+      <div class="card stat"><div class="n">0.16</div><div class="l">low warnings per patient a day, about one a week</div></div>
+    </div>
+    <img class="fig" src="shots/risk-low.png" style="width:330px;height:470px;object-fit:cover;object-position:top;border:1px solid var(--line)">
+    <img class="fig" src="shots/p-low.png" style="width:270px;height:470px;object-fit:cover;object-position:top">
+  </div>
+  <div class="foot"><span>Forecast below 80 mg/dL → Low likely · CGM below 70 → Low now · Geeta Mukherjee, on glimepiride and basal insulin</span><span>14</span></div>
+</section>
+
+<!-- CARE LOOP -->
+<section class="s">
+  <div class="eyebrow">From warning to action · new</div>
+  <h2>Every warning gets an owner, a deadline and a way to reach the patient.</h2>
+  <svg viewBox="0 0 1136 200" style="width:1136px;height:200px;margin-top:30px">
+    <defs><marker id="b" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#4d5683"/></marker></defs>
+    <g font-family="Archivo">
+      <g><rect x="0" y="20" width="160" height="96" rx="10" fill="#fff" stroke="#d5dfd0"/><rect x="0" y="20" width="160" height="5" fill="#bd3326"/><text x="16" y="58" font-weight="800" font-stretch="74%" font-size="21" fill="#18225a">Warn</text><text x="16" y="84" font-size="13" fill="#4d5683">spike or low, 2 h</text><text x="16" y="102" font-size="13" fill="#4d5683">ahead, 3 reasons</text></g>
+      <g><rect x="194" y="20" width="160" height="96" rx="10" fill="#fff" stroke="#d5dfd0"/><text x="210" y="58" font-weight="800" font-stretch="74%" font-size="21" fill="#18225a">Review</text><text x="210" y="84" font-size="13" fill="#4d5683">clinician marks</text><text x="210" y="102" font-size="13" fill="#4d5683">it reviewed</text></g>
+      <g><rect x="388" y="20" width="160" height="96" rx="10" fill="#fff" stroke="#d5dfd0"/><text x="404" y="58" font-weight="800" font-stretch="74%" font-size="21" fill="#18225a">Escalate</text><text x="404" y="84" font-size="13" fill="#4d5683">owner + contact-by</text><text x="404" y="102" font-size="13" fill="#4d5683">time; overdue moves up</text></g>
+      <g><rect x="582" y="20" width="160" height="96" rx="10" fill="#fff" stroke="#d5dfd0"/><text x="598" y="58" font-weight="800" font-stretch="74%" font-size="21" fill="#18225a">Contact</text><text x="598" y="84" font-size="13" fill="#4d5683">prefilled WhatsApp</text><text x="598" y="102" font-size="13" fill="#4d5683">or a call log</text></g>
+      <g><rect x="776" y="20" width="160" height="96" rx="10" fill="#e7e0f7" stroke="#cbbcef"/><text x="792" y="58" font-weight="800" font-stretch="74%" font-size="21" fill="#6a44c9">Advise</text><text x="792" y="84" font-size="13" fill="#4d5683">Rx pad, tested on</text><text x="792" y="102" font-size="13" fill="#4d5683">the twin, sent</text></g>
+      <g><rect x="970" y="20" width="166" height="96" rx="10" fill="#fff" stroke="#d5dfd0"/><rect x="970" y="20" width="166" height="5" fill="#276f45"/><text x="986" y="58" font-weight="800" font-stretch="74%" font-size="21" fill="#18225a">Seen</text><text x="986" y="84" font-size="13" fill="#4d5683">patient taps Got it;</text><text x="986" y="102" font-size="13" fill="#4d5683">clinic sees when</text></g>
+      <g stroke="#4d5683" stroke-width="2" marker-end="url(#b)"><path d="M162 68h28"/><path d="M356 68h28"/><path d="M550 68h28"/><path d="M744 68h28"/><path d="M938 68h28"/></g>
+      <path d="M1053 120 C1053 180 80 180 80 124" fill="none" stroke="#6a44c9" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#b)"/>
+      <text x="568" y="194" text-anchor="middle" font-family="JetBrains Mono" font-size="13" fill="#6a44c9">meals and doses the patient logs flow back into the twin</text>
+    </g>
+  </svg>
+  <div class="row" style="margin-top:18px;align-items:center;gap:30px">
+    <img class="fig" src="shots/esc.png" style="width:440px;border:1px solid var(--line)">
+    <div style="display:grid;gap:12px;font-size:18px;line-height:1.4;flex:1">
+      <div><b>Owners:</b> care coordinator, doctor on call or diabetes educator.</div>
+      <div><b>Stored in Supabase:</b> <span class="mono" style="font-size:15px">alert_reviews · escalations · case_notes · patient_logs</span></div>
+    </div>
+  </div>
+  <div class="foot"><span>Chaya</span><span>15</span></div>
+</section>
+
+<!-- PATIENT APP -->
+<section class="s">
+  <div class="eyebrow">The patient's side · new</div>
+  <h2>The patient carries the carbon copy, in English or Hindi.</h2>
+  <div class="row" style="margin-top:22px;gap:34px;align-items:flex-start">
+    <figure style="margin:0;width:262px"><img class="fig" src="shots/p-today.png" style="width:262px"><figcaption class="k" style="margin-top:8px">Today · glucose + 2 h shadow</figcaption></figure>
+    <figure style="margin:0;width:262px"><img class="fig" src="shots/p-advice.png" style="width:262px"><figcaption class="k" style="margin-top:8px">Advice · 178, not 194</figcaption></figure>
+    <figure style="margin:0;width:262px"><img class="fig" src="shots/p-hindi.png" style="width:262px"><figcaption class="k" style="margin-top:8px">हिंदी · one tap</figcaption></figure>
+    <div style="display:grid;gap:14px;font-size:17px;line-height:1.4;flex:1;align-self:center">
+      <div><b>Dose reminders</b> at the patient's own usual times.</div>
+      <div><b>Log a meal</b> from 38 Indian dishes or a photo; it lands on the clinic trace.</div>
+      <div><b>Lows first:</b> sugar rule, recheck, call.</div>
+      <div class="muted">No risk scores, no twin parameters, no other patients.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Sanjay Krishnan · Sunday 20 Sep · 12:45</span><span>16</span></div>
+</section>
+
+<!-- OUTCOMES -->
+<section class="s" style="padding:48px 64px">
+  <div class="eyebrow">For the hospital buyer · new</div>
+  <h2>Clinic outcomes, and an alert threshold the clinic controls.</h2>
+  <div class="row" style="margin-top:22px;gap:24px;align-items:flex-start">
+    <img class="fig" src="shots/outcomes.png" style="width:720px;height:400px;object-fit:cover;object-position:top left;border:1px solid var(--line)">
+    <div style="display:grid;gap:14px;width:380px">
+      <img class="fig" src="shots/threshold.png" style="width:380px;height:290px;object-fit:cover;object-position:top;border:1px solid var(--line)">
+      <div style="font-size:16px;line-height:1.4"><b class="mono">2.6 → 4.6</b> warnings per patient a day buys <b class="mono">74% → 98%</b> of spikes warned within 2 h.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Time in range · low safety · alert load · warnings → reviewed → escalated → contacted → advice sent → seen</span><span>17</span></div>
+</section>
+
+<!-- DATA SOURCES -->
+<section class="s" style="padding:48px 64px">
+  <div class="eyebrow">Transparency · new</div>
+  <h2>Every number has a source you can name.</h2>
+  <div class="row" style="margin-top:22px;gap:26px;align-items:flex-start">
+    <img class="fig" src="shots/data.png" style="width:760px;height:420px;object-fit:cover;object-position:top left;border:1px solid var(--line)">
+    <div style="display:grid;gap:16px;font-size:18px;line-height:1.4;flex:1">
+      <div class="card stat" style="padding:18px 20px"><div class="n" style="font-size:54px">25</div><div class="l">parameters in four groups: wearables, patient app logs, health record, computed by Chaya</div></div>
+      <div>For each: what it is used for, where the prototype gets it, where a clinic would get it, its <b>LOINC / SNOMED / FHIR</b> code and cadence.</div>
+      <div class="muted">A Sources button on every panel opens the same detail.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Chaya</span><span>18</span></div>
+</section>
+
+<!-- WORKSPACE -->
+<section class="s" style="padding:48px 64px">
+  <div class="eyebrow">Built for the clinic's day · new</div>
+  <h2>Advice is one tap away, and lands where the patient will see it.</h2>
+  <div class="row" style="margin-top:22px;gap:26px;align-items:flex-start">
+    <img class="fig" src="shots/toast.png" style="width:720px;height:400px;object-fit:cover;object-position:top right;border:1px solid var(--line)">
+    <div style="display:grid;gap:13px;font-size:16.5px;line-height:1.4;flex:1">
+      <div><b>Pinned panes:</b> register on the left edge, forecast and twin on the right.</div>
+      <div><b>℞ Try advice</b> opens the Rx pad like an email draft; minimise or close.</div>
+      <div><b>Save and send</b> shows a toast that opens that patient's Advice tab.</div>
+      <div><b>Clear navigation:</b> home → clinic or patient app; inside, a switcher that keeps the same patient.</div>
+      <div><b>Three guided tours:</b> product, Sanjay's case, patient app.</div>
+      <div><b>Unique names:</b> every patient has a surname.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Chaya</span><span>19</span></div>
+</section>
+
 <!-- 14 SAFETY -->
 <section class="s">
   <div class="eyebrow">Safety and privacy</div>
   <h2>Built to support the doctor, not to replace them.</h2>
   <div class="row" style="margin-top:40px">
     <div class="card" style="flex:1"><div style="font-size:22px;font-weight:600;margin-bottom:10px">Clinician in the loop</div><div class="muted" style="font-size:17px;line-height:1.45">Decision support only. No dosing. Every alert shows its reasons and the twin's projection.</div></div>
-    <div class="card" style="flex:1"><div style="font-size:22px;font-weight:600;margin-bottom:10px">Alert fatigue managed</div><div class="muted" style="font-size:17px;line-height:1.45">Consecutive alerts merge into one episode: about 4 per patient-day, with a threshold the clinic can tune.</div></div>
+    <div class="card" style="flex:1"><div style="font-size:22px;font-weight:600;margin-bottom:10px">Alert fatigue managed</div><div class="muted" style="font-size:17px;line-height:1.45">Consecutive alerts merge into one episode. The clinic sets the threshold and sees the trade-off: 2.6–4.6 per patient-day.</div></div>
+    <div class="card" style="flex:1"><div style="font-size:22px;font-weight:600;margin-bottom:10px">Lows come first</div><div class="muted" style="font-size:17px;line-height:1.45">Low warnings lead the patient's screen with the 15 g sugar rule; sulfonylurea and insulin users are flagged.</div></div>
     <div class="card" style="flex:1"><div style="font-size:22px;font-weight:600;margin-bottom:10px">DPDP-ready</div><div class="muted" style="font-size:17px;line-height:1.45">Synthetic data only. FHIR-native, so it can use ABDM-consented records with purpose limitation.</div></div>
   </div>
-  <div class="foot"><span>Chaya</span><span>14</span></div>
+  <div class="foot"><span>Chaya</span><span>20</span></div>
 </section>
 
 <!-- 15 ROADMAP -->
@@ -278,22 +388,22 @@ img.fig{display:block;max-width:100%;border-radius:8px}
     <line x1="20" y1="60" x2="1116" y2="60" stroke="#d5dfd0" stroke-width="2"/>
     <g font-family="Archivo">
       <circle cx="40" cy="60" r="12" fill="#6a44c9"/><text x="20" y="110" font-family="Archivo" font-weight="800" font-stretch="74%" font-size="24" fill="#18225a">Now</text>
-      <text x="20" y="140" font-size="16" fill="#4d5683">Live app on Vercel +</text><text x="20" y="162" font-size="16" fill="#4d5683">Supabase, twin, models</text>
+      <text x="20" y="140" font-size="16" fill="#4d5683">Clinic + bilingual patient</text><text x="20" y="162" font-size="16" fill="#4d5683">app, spikes and lows,</text><text x="20" y="184" font-size="16" fill="#4d5683">live on Vercel + Supabase</text>
       <circle cx="320" cy="60" r="12" fill="#fff" stroke="#6a44c9" stroke-width="3"/><text x="300" y="110" font-family="Archivo" font-weight="800" font-stretch="74%" font-size="24" fill="#18225a">Validate</text>
       <text x="300" y="140" font-size="16" fill="#4d5683">Public CGM + wearable</text><text x="300" y="162" font-size="16" fill="#4d5683">datasets (CGMacros,</text><text x="300" y="184" font-size="16" fill="#4d5683">BIG IDEAs Lab)</text>
       <circle cx="600" cy="60" r="12" fill="#fff" stroke="#6a44c9" stroke-width="3"/><text x="580" y="110" font-family="Archivo" font-weight="800" font-stretch="74%" font-size="24" fill="#18225a">Pilot</text>
       <text x="580" y="140" font-size="16" fill="#4d5683">Supervised pilot with a</text><text x="580" y="162" font-size="16" fill="#4d5683">partner diabetes clinic</text>
       <circle cx="880" cy="60" r="12" fill="#fff" stroke="#6a44c9" stroke-width="3"/><text x="860" y="110" font-family="Archivo" font-weight="800" font-stretch="74%" font-size="24" fill="#18225a">Extend</text>
-      <text x="860" y="140" font-size="16" fill="#4d5683">Patient nudges, hypo risk</text><text x="860" y="162" font-size="16" fill="#4d5683">for sulfonylurea and insulin,</text><text x="860" y="184" font-size="16" fill="#4d5683">hypertension twin</text>
+      <text x="860" y="140" font-size="16" fill="#4d5683">WhatsApp Business API,</text><text x="860" y="162" font-size="16" fill="#4d5683">ABDM-consented records,</text><text x="860" y="184" font-size="16" fill="#4d5683">hypertension twin</text>
     </g>
   </svg>
-  <div class="foot"><span>Chaya</span><span>15</span></div>
+  <div class="foot"><span>Chaya</span><span>21</span></div>
 </section>
 
 <!-- 16 CLOSE -->
 <section class="s dark" style="justify-content:center">
   <div class="eyebrow">Proactive, not reactive</div>
-  <h1 style="font-size:64px;max-width:1000px">See the spike before it happens. Show the patient how to avoid it.</h1>
+  <h1 style="font-size:64px;max-width:1000px">See the spike before it happens. Make sure someone acts. Show the patient how to avoid it.</h1>
   <div class="mono" style="margin-top:40px;font-size:18px;color:#b9c0dd">chaya-tau.vercel.app · github.com/r-e-sai-harsha/TheGeeks_MastersUnion</div>
   <div style="margin-top:14px;font-size:18px;color:#eef0fa">The Geeks · R. E. Sai Harsha Sadhu · Sanskriti Saraf · Muskan Sharma</div>
   <div class="foot"><span>The Geeks · Masters' Union</span><span>Thank you</span></div>

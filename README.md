@@ -4,7 +4,7 @@
 
 *Chaya* is Sanskrit and Hindi for shadow and shade: the patient's twin walks two hours ahead of them and keeps them out of harm's way.
 
-Chaya builds a small, personal physiological model ("twin") for each person with Type 2 Diabetes. It starts from the electronic health record, tunes itself on a week of wearable data, and then runs beside the live CGM. Every 15 minutes it estimates the chance that glucose will cross 180 mg/dL within the next 2 hours, explains why, and lets a doctor simulate "what if" scenarios: a different meal, a walk after lunch, a missed metformin dose, a short night's sleep.
+Chaya builds a small, personal physiological model ("twin") for each person with Type 2 Diabetes. It starts from the electronic health record, tunes itself on a week of wearable data, and then runs beside the live CGM. Every 15 minutes it estimates the chance that glucose will cross 180 mg/dL within the next 2 hours, warns when it is heading below 70, explains why, and lets a doctor simulate "what if" scenarios: a different meal, a walk after lunch, a missed metformin dose, a short night's sleep. The advice goes to the patient's phone in English or Hindi, and the clinic sees whether it was read.
 
 | | |
 |---|---|
@@ -41,7 +41,15 @@ Chaya builds a small, personal physiological model ("twin") for each person with
 - Care is reactive. An HbA1c every three months averages away hundreds of meals, and the doctor sees none of them.
 - South Asian physiology differs: more insulin resistance at a lower BMI. Generic risk scores under-call Indian patients.
 
-**Use case:** a diabetologist or care coordinator monitors a panel of CGM-wearing patients. Chaya ranks patients by risk, raises an alert ~2 hours before a likely spike with the reasons behind it, and lets the doctor test lifestyle and medication changes on the patient's twin before advising them.
+**Use case:** a diabetologist or care coordinator monitors a panel of CGM-wearing patients. Chaya ranks patients by risk, raises an alert ~2 hours before a likely spike (or a likely low) with the reasons behind it, assigns each warning an owner and a contact-by time, and lets the doctor test lifestyle and medication changes on the patient's twin before sending the advice to the patient's app.
+
+**Two users, one twin**
+
+| | Clinic (doctor, care coordinator) | Patient app (person with T2D) |
+|---|---|---|
+| Sees | Ranked register, risk stamp with reasons, twin parameters, alert load, outcomes | Own glucose with a 2-hour shadow, plain-language warnings, dose reminders, the doctor's advice |
+| Does | Reviews warnings, escalates (WhatsApp or call), tests advice on the twin, saves and sends it | Logs meals and doses, takes sugar for a low, marks advice as read |
+| Never sees | n/a | Risk percentages, model parameters, other patients |
 
 ---
 
@@ -94,6 +102,12 @@ Synthetic data lets us check the twin against each patient's hidden true physiol
 | Insulin sensitivity | 0.75 | **0.84** |
 | β-cell response | 0.88 | **0.91** |
 
+### Low-glucose warnings
+The same twin forecast, read the other way: when the 2-hour forecast dips below **80 mg/dL** Chaya raises *Low likely*; under 70 it is *Low now*. On the held-out week it warned of **7 of 10 lows, a median 80 minutes early**, at **0.16 low warnings per patient a day** (about one a week). Computed by [`scripts/build_outcomes.js`](scripts/build_outcomes.js) with the same simulator the browser runs.
+
+### Alert threshold trade-off
+Measured on the same week: moving the spike threshold from strict to sensitive takes the alert load from **2.6 to 4.6 warnings per patient a day** and the share of spikes warned within 2 h from **74% to 98%**. The clinic can set it; the default is the threshold chosen on training folds.
+
 ### When does the twin matter most?
 With few training patients, the twin's physics carries knowledge the ML has not learned yet. With 5 training patients, AUROC rises from 0.873 to 0.893, and the gap narrows as data grows ([`reports/figures/learning_curve.png`](reports/figures/learning_curve.png)). This matters for a new clinic or a newly onboarded patient. The twin also enables what-if simulation, which a black-box model cannot do.
 
@@ -143,6 +157,7 @@ Hidden ground truth (true meals, true physiology) sits in `data/_ground_truth/` 
 - **Low-glucose risk**: the twin's 2-hour forecast dipping below 80 mg/dL raises *Low likely* (deep blue, downward triangle); under 70 is *Low now*. On the held-out week it warned of 7 of 10 lows, a median 80 minutes early, at about 1 low warning per patient a week. Patients on sulfonylureas or insulin are flagged in the register.
 - **Escalation**: every spike or low warning gets an owner (care coordinator, doctor on call, diabetes educator) and a contact-by time. The owner sends a prefilled WhatsApp message or logs a call outcome; open escalations go overdue and move to the doctor on call. Stored in Supabase.
 - **Alert threshold**: the *Alerts* control in the clinic bar sets how readily spike warnings fire, with the measured trade-off (2.6–4.6 warnings per patient a day against 74–98% of spikes warned within 2 h).
+- **Names**: every synthetic patient has a first name and a surname (for example Sanjay Krishnan, Geeta Mukherjee) so no two patients in the register share a name.
 - **Patient's twin**: insulin sensitivity, insulin response and resting glucose against the cohort and the EHR-only estimate.
 - **Layout**: the register is pinned to the left edge and *Next 2 hours* plus *Patient's twin* to the right edge; the case sheet scrolls between them.
 - **Rx pad**: a compose-style **℞ Try advice** button at the bottom right opens the pad as a dock (minimise or close it like a mail draft). Write advice (meal, timing, walk, sleep, metformin), see the four-hour simulation, then **save and send it to the patient**: it is stored in the case notes in the database and a toast offers **Open <name>'s advice**, which jumps to the Advice tab of that patient's app.
@@ -162,7 +177,20 @@ Hidden ground truth (true meals, true physiology) sits in `data/_ground_truth/` 
 
 **Data sources** (`/#/data`) lists all 25 parameters Chaya monitors, grouped into wearables, patient app logs, the health record and values computed by Chaya. Each has what it is used for, where this prototype gets it (file and simulation details), where it would come from in a clinic (device, API, ABDM), its standard code (LOINC, SNOMED CT, FHIR resource) and its cadence. Opened from a case, it also shows that patient's data completeness: CGM coverage, meals logged and noticed, doses and nights recorded.
 
-**Guidance built in**: a first-visit welcome slip, a 9-stop **product tour**, a 9-step **guided case walkthrough** (Sanjay's Sunday lunch: biryani 237 → ragi mudde 194 → plus a 20-minute walk 178 mg/dL, ending on his phone), a **What's what** glossary, a **Where the data comes from** guide, and an `i` button on every panel.
+**Guidance built in**: a first-visit welcome slip, a 9-stop **product tour**, a 9-step **guided case walkthrough** (Sanjay's Sunday lunch: biryani 237 → ragi mudde 194 → plus a 20-minute walk 178 mg/dL, ending on his phone), an 11-step **patient app tour**, a **What's what** glossary, a **Where the data comes from** guide, and an `i` button on every panel.
+
+### What is new in this version
+| Area | Change |
+|---|---|
+| Safety | Low-glucose warnings from the twin (7 of 10 lows, median 80 min ahead), shown first on the patient's phone with the 15 g sugar rule |
+| Workflow | Escalation with an owner, a contact-by time, a prefilled WhatsApp message or a call log; overdue cases move to the doctor on call |
+| Buyer view | Clinic outcomes page with time in range, low safety, alert load and the warning-to-action funnel |
+| Control | Adjustable alert threshold with its measured trade-off |
+| Patient app | Bilingual (English, Hindi), meal and dose logging that feeds the twin, dose reminders, advice read receipts |
+| Clinic layout | Register and forecast panes pinned to the screen edges; the Rx pad is a compose-style dock; saving advice offers a link straight to that patient's Advice tab |
+| Navigation | Home has section links and two entry points (hero CTA for the clinic, a patient app section with its own CTA); inside the product a home icon, a Clinic / Patient app switcher, Outcomes and Data sources |
+| Transparency | Data sources page and a Sources drawer on every panel: 25 parameters with origin, standard code and cadence |
+| Reliability | API runs in Mumbai (`bom1`) next to the database; the browser waits for cold starts and falls back to the bundled data if the API is unreachable |
 
 ## 8. Run it
 
@@ -178,8 +206,10 @@ Rebuild everything from scratch (data → twins → models → metrics → web d
 ### Deploy on Vercel + Supabase (live setup)
 
 The hosted app runs the web front end on **Vercel** and stores the clinic in **Supabase Postgres**:
-- `web/` is the Vercel project root. `web/api/index.js` is a Node serverless function that serves the same `/api/...` routes as `api/server.py`, reading and writing Supabase through its REST API with row-level security (read-only clinic data; clinicians can add and remove case notes and mark warnings reviewed).
-- Tables: `patients` (register), `cases` (each patient's replay week as JSONB: readings, meals, predictions, twin state), `case_notes`, `alert_reviews`, `meta`.
+- `web/` is the Vercel project root. `web/api/index.js` is a Node serverless function in the Mumbai region (`bom1`) that serves the clinic's `/api/...` routes, reading and writing Supabase through its REST API with row-level security (clinic data is read-only; only the columns the app needs are writable).
+- Tables: `patients` (register, with surname), `cases` (each patient's replay week as JSONB: readings, meals, predictions, twin state), `case_notes` (with `ack_at` when the patient reads it), `alert_reviews`, `escalations` (owner, due time, channel, outcome), `patient_logs` (meals and doses logged in the patient app), `meta`.
+- `web/data/outcomes.json` holds the precomputed low-glucose flags, threshold curve and daily time in range (`node scripts/build_outcomes.js`).
+- If the API cannot be reached the app says *Offline demo* and runs from `web/data/` with changes kept in the browser.
 - Environment variables on Vercel: `SUPABASE_URL`, `SUPABASE_KEY` (publishable key).
 - The twin simulation runs in the browser; the full Python pipeline (`/api/pipeline/...`) runs locally or on Railway.
 
@@ -200,7 +230,12 @@ The hosted app runs the web front end on **Vercel** and stores the clinic in **S
 | POST | `/api/patients/{pid}/simulate` | Run the twin forward under advice |
 | GET / POST / DELETE | `/api/patients/{pid}/notes` | Saved Rx advice with its projection |
 | POST | `/api/patients/{pid}/alerts/{k}/review` | Mark a warning reviewed |
-| GET | `/api/pipeline/{pid}/risk?at=ISO` | End to end from raw files: FHIR + wearables → calibrated twin → features → LightGBM |
+| GET | `/api/pipeline/{pid}/risk?at=ISO` | End to end from raw files: FHIR + wearables → calibrated twin → features → LightGBM (Python server) |
+| POST | `/api/patients/{pid}/notes/{id}/ack` | Patient read the advice (Vercel API) |
+| GET / POST | `/api/patients/{pid}/escalations` | Escalations for a patient; create one with owner and due time (Vercel API) |
+| PATCH | `/api/escalations/{id}` | Log the contact channel, outcome or close it (Vercel API) |
+| GET / POST / DELETE | `/api/patients/{pid}/logs` | Meals and doses logged in the patient app (Vercel API) |
+| GET | `/api/outcomes` | Live funnel counts: reviewed, escalated, contacted, advice sent, advice seen (Vercel API) |
 
 ```bash
 curl "http://127.0.0.1:8000/api/pipeline/GT-1102/risk?at=2026-09-20T12:45"
@@ -226,14 +261,17 @@ Interactive API docs: `/docs`.
 │   ├── db.py           SQLAlchemy models (Postgres / SQLite)
 │   └── seed.py         loads the replay week into the database
 ├── scripts/            generate_data → build_features → train_evaluate → export_dashboard → seed_db
+│                       build_outcomes.js (low flags, threshold curve), surnames.json
 ├── api/server.py       FastAPI: clinic API + pipeline endpoint + serves the web app
 ├── web/                Chaya web app (index.html, assets/, data/ for the offline fallback)
+│   ├── api/index.js    Vercel Node API over Supabase
+│   └── vercel.json     region bom1, caching
 ├── Dockerfile, railway.json
 ├── data/               synthetic EHR (CSV + FHIR), wearable streams, ground truth
 ├── models/             trained classifier + regressor, calibrated twin parameters (full twin states are rebuilt by run_all.sh)
 ├── reports/            metrics.json, figures, test predictions
 ├── docs/               architecture PDF, presentation PDF, video script, model card
-│   └── video/          narration, subtitles and the scripts that recorded and edited the demo video
+│   └── video/          narration.json (voice-over per shot), build_script.py (→ video_script.md) and the scripts that recorded and edited the demo video
 ├── PRODUCT.md          product brief
 └── DESIGN.md           design system (tokens, components, rules)
 ```
@@ -244,7 +282,8 @@ Interactive API docs: `/docs`.
 
 - **Synthetic data.** Results show the method works and the pipeline is end-to-end, not clinical accuracy. Next: validate on public CGM datasets with wearables and meals (e.g. PhysioNet CGMacros, BIG IDEAs Lab) under their data-use terms.
 - **Meal logging.** Real users log inconsistently. The twin's unlogged-meal detection helps, and photo-based logging is a natural add-on.
-- **Scope.** Spikes only. The same twin can forecast hypoglycaemia for sulfonylurea and insulin users, and can be extended to hypertension.
+- **Scope.** Spikes and lows. Low warnings are evaluated on only 10 low episodes in the held-out week, so they need a larger test. The same twin can be extended to hypertension.
+- **Messaging.** Escalation opens a prefilled WhatsApp message; a pilot would use the WhatsApp Business API and log delivery automatically.
 - **Clinical use.** Decision support only, with a clinician in the loop. Not a medical device, and not for treatment decisions.
 
 See [`docs/model_card.md`](docs/model_card.md) for intended use, risks and fairness notes.
@@ -253,4 +292,4 @@ See [`docs/model_card.md`](docs/model_card.md) for intended use, risks and fairn
 
 ## 11. License
 
-Code and synthetic data are released under the [MIT License](LICENSE). D3.js (vendored in `web/assets/vendor/`) is ISC-licensed. Archivo, Kalam, JetBrains Mono (`web/assets/fonts/`) and IBM Plex (`docs/src/fonts/`) are under the SIL Open Font License.
+Code and synthetic data are released under the [MIT License](LICENSE). D3.js (vendored in `web/assets/vendor/`) is ISC-licensed. Archivo, Kalam, JetBrains Mono, Hind (`web/assets/fonts/`) and IBM Plex (`docs/src/fonts/`) are under the SIL Open Font License.

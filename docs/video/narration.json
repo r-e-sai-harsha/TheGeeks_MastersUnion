@@ -2,7 +2,7 @@
 {
 "id": "01_hook",
 "visual": "broll+title",
-"text": "Every three months, a person with diabetes in India gets one number: their H-b-A-1-c. In between, there are about two hundred and seventy meals, and the doctor sees none of them. This is Chaya. Chaya means shadow. It is a digital twin that walks two hours ahead of a patient, and warns the care team before a glucose spike happens."
+"text": "Every three months, a person with diabetes in India gets one number: their H-b-A-1-c. In between, there are about two hundred and seventy meals, and the doctor sees none of them. This is Chaya. Chaya means shadow. It is a digital twin that walks two hours ahead of a patient, warns the care team before a glucose spike or a low, and puts the doctor and the patient on the same page."
 },
 {
 "id": "02_team",
@@ -22,17 +22,17 @@
 {
 "id": "05_twin",
 "visual": "slide:4",
-"text": "Here is what a digital twin means in Chaya. It is not just a classifier. Every patient gets a small physiological model of their own body: food enters the gut, glucose enters the blood, and insulin pushes it back down. Four personal numbers shape that model. Insulin sensitivity, which is how strongly the body responds to insulin. Beta-cell response, which is how much insulin the pancreas releases when glucose rises. Basal glucose, where the patient settles with no food. And meal absorption, along with the morning dawn effect. The twin starts from the static stream, the electronic health record, and is then tuned on the first seven days of the dynamic stream, the wearables. That is data fusion at the level of physiology. The twin also spots meals the patient forgot to log, and it accounts for short sleep and missed metformin."
+"text": "Here is what a digital twin means in Chaya. Every patient gets a small physiological model of their own body: food enters the gut, glucose enters the blood, and insulin pushes it back down. Four personal numbers shape it: insulin sensitivity, how strongly the body responds to insulin; beta-cell response, how much insulin the pancreas releases; basal glucose, where the patient settles with no food; and meal absorption, with the morning dawn effect. The twin starts from the health record, the static stream, and is tuned on the first seven days of wearables, the dynamic stream. That is data fusion at the level of physiology. It also spots meals the patient forgot to log, and accounts for short sleep and missed metformin."
 },
 {
 "id": "06_data",
 "visual": "slide:5",
-"text": "Because this challenge runs in a sandbox, all of our data is synthetic. We built our own generator rather than relying only on Synthea, because we needed Indian meals, Indian prescriptions like teneligliptin and glimepiride, late dinners and festival days, and glucose physics that stays consistent with the H-b-A-1-c in each record. The cohort has one hundred and fifty patients, fourteen days each, which is six hundred and four thousand eight hundred five-minute readings. We made it realistically messy. Patients log only forty five to ninety eight percent of their meals, under-estimate carbohydrates, miss doses and sleep badly. The sensor has lag, noise and dropouts. Every health record is exported as a FHIR R4 bundle with LOINC and SNOMED codes, so the same pipeline can later read real, consented records through India's ABDM network."
+"text": "Because this challenge runs in a sandbox, all of our data is synthetic. We built our own generator, because we needed Indian meals, Indian prescriptions like teneligliptin and glimepiride, late dinners and festival days, and glucose physics that stays consistent with the H-b-A-1-c in each record. The cohort has one hundred and fifty patients, fourteen days each: six hundred and four thousand eight hundred five-minute readings. It is realistically messy: patients log only some of their meals, under-estimate carbohydrates, miss doses and sleep badly, and the sensor has lag, noise and dropouts. Every health record is a FHIR R4 bundle with LOINC and SNOMED codes, so the same pipeline can later read real, consented records through ABDM."
 },
 {
 "id": "07_arch",
 "visual": "slide:6",
-"text": "This is the architecture, read from left to right. Two data streams, the health record and the wearables, flow into an ingest layer. Next is the twin core. It sets a prior from the record, calibrates on the first week, observes each new reading, learns the patient's habits, and forecasts forward. We then fuse three groups of features: eighteen from the record, twenty five from the wearables, and eleven from the twin itself. A gradient-boosted LightGBM model predicts the spike, and a second model forecasts glucose two hours ahead. SHAP explanations turn every score into reasons. Finally, an API serves a clinician console, backed by a Postgres database."
+"text": "This is the architecture, left to right. The health record and the wearables flow into an ingest layer, then the twin core: a prior from the record, calibration on the first week, an observer, a habit model and a forecaster. We fuse eighteen record features, twenty five wearable features and eleven from the twin. LightGBM predicts the spike and forecasts glucose two hours ahead, the same twin forecast read downwards warns of lows, and SHAP gives the reasons. The output goes to a simulated clinic and to a patient app. Page two shows the care loop, from warning to the patient reading the advice, and the deployment on Vercel in Mumbai over Supabase."
 },
 {
 "id": "08_validity",
@@ -57,32 +57,27 @@
 {
 "id": "11b_explain",
 "visual": "slide:12",
-"text": "Every alert comes with its reasons. We use SHAP to break each score into contributions, then group them into drivers a clinician recognises, such as the twin's forecast, a recent meal, activity, glucose trend, sleep, medication and meals the patient forgot to log. The twin's own forecast is the biggest single driver, which tells us the physics is doing real work inside the model. And because the reasons are written in plain words, a care coordinator can act on them without reading a chart."
+"text": "Every alert comes with its reasons. SHAP breaks each score into contributions, grouped into drivers a clinician recognises: the twin's forecast, a recent meal, activity, glucose trend, sleep, medication and meals the patient forgot to log. The twin's own forecast is the biggest single driver, so the physics is doing real work inside the model."
 },
 {
 "id": "12_home",
 "visual": "app:home",
-"text": "This is Chaya, live on the web. The home page shows the product in a single card, a forecast slip for one patient at twelve fifteen, just before lunch. If he eats chicken biryani and rests, the violet shadow climbs well above one eighty, and the stamp reads spike likely. Switch to ragi mudde, a millet dish, and add a twenty-minute walk. The shadow flattens, and the stamp reads in range. That is the whole idea: see the spike before it happens, and show the patient how to avoid it."
-},
-{
-"id": "12b_howitworks",
-"visual": "app:homescroll",
-"text": "Scroll down, and the home page explains the method in the order a doctor would ask about it. One week to learn the body: Chaya reads the health record and seven days of wearable data to tune the twin, and from then on it forecasts every fifteen minutes. The evidence section reports the held-out results we just covered. Built for India covers Indian meals, prescriptions and routines. And the safety section states plainly that this is decision support, not a diagnosis."
+"text": "This is Chaya, live on the web. The home page shows the product in a single card, a forecast slip for one patient at twelve fifteen, just before lunch. If he eats chicken biryani and rests, the violet shadow climbs well above one eighty, and the stamp reads spike likely. Switch to ragi mudde, a millet dish, and add a twenty-minute walk. The shadow flattens, and the stamp reads in range. Further down, the page explains how it works, where every number comes from, the evidence, and the patient app, with its own button to open it."
 },
 {
 "id": "13_clinic",
 "visual": "app:clinic",
-"text": "Now let us open the simulated clinic. The strip at the top reminds everyone that every patient here is synthetic. The pill in the corner says live, Supabase. The clinic is served by our API on Vercel, from a Postgres database. A welcome slip offers a one-minute tour, or a guided walkthrough of one patient's case. Let us start with the tour."
+"text": "Now let us open the simulated clinic, from the button at the top of the page. Inside, the header changes to a workspace: a home icon, a switch between the clinic and the patient app that keeps the same patient, and links to clinic outcomes and data sources. The strip reminds everyone that every patient here is synthetic. The pill says live, Supabase: the clinic is served by our API on Vercel, in Mumbai, next to the database. A welcome slip offers a one-minute tour, or a guided walkthrough of one patient's case."
 },
 {
 "id": "13b_tour",
 "visual": "app:tour",
-"text": "First, the one-minute product tour. The register lists every patient, ranked by spike warnings this week. The clock bar replays one synthetic week, and every panel shows only what Chaya knew at that moment. The case sheet shows diagnoses, medicines and this week's numbers, including time in range and the lab H-b-A-1-c. The day trace draws glucose so far in ink, and Chaya's two-hour forecast as a violet shadow. The stamp on the slip escalates from in range, to watch, to spike likely. Every warning lists its top three reasons. The twin panel shows the personal numbers Chaya learned, against what the health record alone suggested. The Rx pad lets the doctor try advice before giving it. And help is always one click away."
+"text": "First, the one-minute product tour. The register, pinned to the left edge, ranks patients by spike warnings this week. The clock bar replays one synthetic week, and every panel shows only what Chaya knew at that moment. In the middle, the day trace draws glucose in ink and Chaya's two-hour forecast as a violet shadow. Pinned to the right, the stamp escalates from in range to spike likely, with three reasons, above the personal numbers the twin learned. And the Rx pad waits behind the Try advice button, like composing an email."
 },
 {
 "id": "14_case_a",
 "visual": "app:case1-3",
-"text": "Now, from the guide menu, let us walk through Sanjay's case. It is Sunday, twelve fifteen, and Sanjay is about to eat lunch. He is fifty three, has had Type Two diabetes for about four years, and takes metformin and glimepiride. His glucose is calm and in range. Over his first week, his twin learned that his insulin sensitivity is low, lower than his health record suggested. That is why lunch hits him hard. If he eats chicken biryani, the twin projects a peak of two hundred and thirty seven, with about two hours above one eighty."
+"text": "Now, from the guide menu, let us walk through Sanjay Krishnan's case. It is Sunday, twelve fifteen, and Sanjay is about to eat lunch. He is fifty three, has had Type Two diabetes for about four years, and takes metformin and glimepiride. His glucose is calm and in range. Over his first week, his twin learned that his insulin sensitivity is low, lower than his health record suggested. That is why lunch hits him hard. If he eats chicken biryani, the twin projects a peak of two hundred and thirty seven, with about two hours above one eighty."
 },
 {
 "id": "15_case_b",
@@ -92,56 +87,71 @@
 {
 "id": "16_case_c",
 "visual": "app:case6-8",
-"text": "Now, what actually happened. At twelve forty five, Sanjay logged an eighty one gram lunch. Chaya stamped his slip spike likely, ninety two percent, and listed the reasons, forty minutes before his glucose actually crossed one eighty. That is the window a care coordinator needs to make a call. On the day trace, the violet dashes are what Chaya expected, and the grey line is what happened. Finally, the doctor saves this advice to his case notes. It is written to the database, along with the twin's projection, so the next consult starts from it."
+"text": "Now, what actually happened. At twelve forty five, Sanjay logged an eighty one gram lunch. Chaya stamped his slip spike likely, ninety two percent, and listed the reasons, forty minutes before his glucose actually crossed one eighty. That is the window a care coordinator needs to make a call. Finally, the doctor chooses save and send to patient. The advice is written to the database with the twin's projection, and a note pops up with a link: open Sanjay's advice."
+},
+{
+"id": "16b_patient",
+"visual": "app:patient",
+"text": "And here is exactly what Sanjay sees on his phone. The advice arrives in his doctor's handwriting, with what it should do: a peak of about one seventy eight instead of one ninety four. He taps got it, and the clinic sees that he read it. Today shows his glucose with the same violet shadow, plain warnings, and his medicines at his own usual dose times. The plus button logs a meal in two taps, and it lands on the clinic's trace. One tap switches to Hindi. He never sees risk scores or other patients."
 },
 {
 "id": "17_register",
 "visual": "app:register",
-"text": "On the left is the register of forty five patients, ranked by how many spike warnings they had this week. Each bar shows time in range in green and time above range in red. Sort by lowest time in range, and open another patient. As we drag the clock, every panel shows only what Chaya knew at that moment, and the stamp changes from in range, to watch, to spike likely."
-},
-{
-"id": "18_replay",
-"visual": "app:replay",
-"text": "Press replay, and the week plays forward fifteen minutes at a time. Watch the warnings appear before the spikes, not after them."
+"text": "Back in the clinic. Every patient now has a full name, so no two people in the register look alike. Sort by lowest time in range, or by low-glucose risk, and open another patient. Press replay, and watch the warnings appear before the spikes, not after them."
 },
 {
 "id": "19_review",
 "visual": "app:review",
-"text": "Every warning can be marked as reviewed, which keeps an audit trail for the care team. If a term is unfamiliar, the guide opens What's what, a plain-language glossary, and each panel has a small i button that explains it."
+"text": "Every warning can be marked as reviewed, which keeps an audit trail. And if a term is unfamiliar, each panel has a small i button, and a Sources button that shows exactly where that number comes from."
+},
+{
+"id": "19b_low",
+"visual": "app:low",
+"text": "Spikes are only half of the safety story. The same twin forecast, read downwards, warns of lows. Here is Geeta Mukherjee, on glimepiride and basal insulin, on Monday morning. Her glucose is one hundred and seven and falling, and the twin forecasts a dip to about seventy three. The stamp reads low likely, in a deep blue, with the medication listed as a reason. On her phone, the low card moves to the very top. On the held-out week, Chaya warned of seven of ten lows, a median of eighty minutes early, at about one low warning per patient a week."
+},
+{
+"id": "19c_escalate",
+"visual": "app:escalate",
+"text": "A warning only matters if someone acts on it. Under who acts on this, the doctor picks an owner, the care coordinator, the doctor on call or the diabetes educator, and a contact-by time. The owner can open a prefilled WhatsApp message, or log a call and its outcome. If nobody acts in time, the case goes overdue and moves to the doctor on call. Every step is stored."
 },
 {
 "id": "20_rx",
 "visual": "app:rx",
-"text": "The Rx pad lets a doctor try advice before giving it. Set metformin to missed, and set last night's sleep to five hours. The twin redraws the next four hours, and the peak rises. This is a conversation a doctor can have with a patient, using numbers for this patient's body rather than generic advice."
+"text": "The Rx pad opens from the Try advice button at the bottom, like an email draft. It floats over the case sheet, so the forecast stays in view, and it can be minimised or closed. Set metformin to missed, and last night's sleep to five hours. The twin redraws the next four hours, and the peak rises. This is a conversation a doctor can have with a patient, using numbers for this patient's body rather than generic advice."
 },
 {
-"id": "21_festival",
-"visual": "app:festival",
-"text": "Switch to Wednesday, the festival day in this synthetic week. The swings are bigger, and Chaya's warnings rise to meet them."
+"id": "20b_outcomes",
+"visual": "app:outcomes",
+"text": "This is what a hospital buyer would look at: clinic outcomes. Patients meeting the time-in-range goal, daily time in range, low-glucose safety, alert load, and a funnel showing whether warnings turned into action, from reviewed to seen by the patient. Back in the clinic, the alerts control sets how readily spike warnings fire: about two point six to four point six warnings per patient a day, for seventy four to ninety eight percent of spikes warned."
+},
+{
+"id": "20c_data",
+"visual": "app:data",
+"text": "Every number has a source. The data sources page lists all twenty five parameters Chaya monitors, in four groups: wearables, patient app logs, the health record, and values Chaya computes. For each, it shows what it is used for, where this prototype gets it, where a real clinic would get it, its standard code, and how often it arrives."
+},
+{
+"id": "20d_ptour",
+"visual": "app:ptour",
+"text": "And for anyone opening the patient app cold, the guide now includes a patient app tour, eleven short steps through the reading, warnings, dose reminders, logging, advice, the week, the Hindi switch, and a low-glucose example."
 },
 {
 "id": "22_backend",
 "visual": "app:backend",
-"text": "Under the hood, this is a real backend. The health endpoint reports the database and its forty five patients. Locally, a FastAPI service also exposes the full pipeline: it reads a raw FHIR bundle and the wearable stream, calibrates the twin, and returns the risk with its reasons. Everything is open source on GitHub under the MIT licence."
-},
-{
-"id": "22b_code",
-"visual": "app:code",
-"text": "The repository holds the whole pipeline: the synthetic cohort generator, the twin, feature building, model training and evaluation, the API and the web app. Here is one patient's health record as a FHIR bundle, with conditions, medications and lab results coded in SNOMED and LOINC. A single script regenerates the data, retrains the models and rebuilds every chart, so the results can be reproduced end to end."
+"text": "Under the hood, this is a real backend. The health endpoint reports the database and its forty five patients. Reviews, escalations, advice, read receipts and patient logs are stored in Supabase Postgres with row-level security. Locally, a FastAPI service runs the full pipeline from a raw FHIR bundle and the wearable stream to a risk with reasons. Everything is open source under the MIT licence."
 },
 {
 "id": "23_safety",
-"visual": "slide:14",
-"text": "Chaya is built to support the doctor, not to replace them. It is decision support only, with a clinician in the loop. Consecutive alerts are merged into episodes to limit alert fatigue, about four per patient-day at this threshold, and that threshold can be tuned by the clinic. There is no real patient data in this prototype. When it moves to real records, consent will flow through ABDM, in line with India's Digital Personal Data Protection Act, and the system is FHIR-native from day one."
+"visual": "slide:20",
+"text": "Chaya is built to support the doctor, not to replace them. It is decision support only, with a clinician in the loop and no dosing advice. Alerts are merged into episodes, and the clinic sets the threshold, seeing the trade-off as it does. Lows come first on the patient's screen. There is no real patient data in this prototype. When it moves to real records, consent will flow through ABDM, in line with India's Digital Personal Data Protection Act, and the system is FHIR-native from day one."
 },
 {
 "id": "24_roadmap",
-"visual": "slide:15",
-"text": "Our roadmap has four steps. First, validate on public glucose datasets such as CGMacros and BIG IDEAs. Second, run a supervised pilot with a partner diabetes clinic. Third, add patient-side nudges, so the advice reaches the patient at the moment of the meal. And fourth, extend the same twin to low-glucose risk for patients on sulfonylureas, and to hypertension."
+"visual": "slide:21",
+"text": "Today, the prototype covers the clinic and a bilingual patient app, for both spikes and lows, live on Vercel and Supabase. Next, we validate on public glucose datasets such as CGMacros and BIG IDEAs. Then a supervised pilot with a partner diabetes clinic. And then we extend: the WhatsApp Business API for escalations, ABDM-consented records, and a hypertension twin."
 },
 {
 "id": "25_close",
-"visual": "slide:16",
-"text": "Diabetes care in India does not have to be reactive. With Chaya, we see the spike before it happens, and we can show the patient how to avoid it. The live app and all our code are linked below. Thank you from The Geeks."
+"visual": "slide:22",
+"text": "Diabetes care in India does not have to be reactive. With Chaya, we see the spike before it happens, we make sure someone acts on it, and we show the patient how to avoid it. The live app and all our code are linked below. Thank you from The Geeks."
 }
 ]
