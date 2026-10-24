@@ -8,6 +8,7 @@
 // ================================================================== helpers
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const fullName = c => c && c.surname ? `${c.name} ${c.surname}` : (c ? c.name : "");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fmtT = m => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.round(m) % 60).padStart(2, "0")}`;
@@ -20,7 +21,15 @@ const store = {
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const toastEl = () => $("#toast");
 let toastTimer;
-function toast(msg) { const t = toastEl(); t.textContent = msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2600); }
+function toast(msg, act) {
+  const t = toastEl();
+  t.innerHTML = `<span>${esc(msg)}</span>${act ? `<a class="toast-a" href="${act.href}">${esc(act.label)}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>` : ""}`;
+  t.classList.toggle("act", !!act); t.classList.add("on"); clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), act ? 9000 : 2600);
+}
+document.addEventListener("click", e => { if (e.target.closest(".toast-a")) toastEl().classList.remove("on"); });
+/* Keep sticky panes below the header, whatever its height. */
+new ResizeObserver(() => { const h = document.getElementById("letterhead"); if (h) document.documentElement.style.setProperty("--hdr", `${Math.round(h.getBoundingClientRect().height)}px`); }).observe(document.getElementById("letterhead"));
 
 // ================================================================== twin simulator (mirror of physiology.py)
 const P2 = 0.025, NCL = 0.14, TAUE = 240, KE = 0.0008;
@@ -231,14 +240,13 @@ function parseHash() {
 async function route() {
   const r = parseHash();
   Object.entries(views).forEach(([k, el]) => { el.hidden = k !== r.view; });
-  $("#cta-top").hidden = r.view !== "home";
   renderNav(r.view);
   Sources.close();
   const tp = r.params && r.params.get("t");
   if (tp && /^[0-6]\.\d{1,2}$/.test(tp)) { const [dd, ss] = tp.split(".").map(Number); if (ss <= 95) { S.day = dd; S.slot = ss; } }
   if (r.view === "outcomes") { Clinic.togglePlay(false); if (current !== "outcomes") window.scrollTo(0, 0); await Outcomes.render(); }
   else if (r.view === "data") { Sources.renderPage(r.params.get("p")); if (current !== "data") window.scrollTo(0, 0); }
-  else if (r.view === "patient") { Clinic.togglePlay(false); if (current !== "patient") window.scrollTo(0, 0); await Patient.init(r.pid); }
+  else if (r.view === "patient") { Clinic.togglePlay(false); if (current !== "patient") window.scrollTo(0, 0); await Patient.init(r.pid, r.params); }
   else if (r.view === "home") {
     if (current !== "home") { await Home.init(); window.scrollTo(0, 0); }
     if (r.anchor) { const t = document.getElementById(r.anchor); if (t) t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" }); }
@@ -252,12 +260,26 @@ async function route() {
   if (r.view !== "clinic") Welcome.hide();
   current = r.view;
 }
+/* The patient the clinic and the patient app are looking at; the header switcher keeps them in step. */
+let curPid = "GT-1102", navView = "home";
+const NAV_ICON = {
+  clinic: "M6 3v6a4 4 0 0 0 8 0V3M10 13v3a5 5 0 0 0 10 0v-2M20 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4",
+  patient: "M8 2.5h8a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-15a2 2 0 0 1 2-2zM10.5 18.5h3",
+};
 function renderNav(view) {
-  const pid = Patient.pid || S.pid || "GT-1102";
-  const links = view === "home"
-    ? [["#how", "How it works"], ["#sources", "Data sources"], ["#evidence", "Evidence"], ["#india", "Built for India"], ["#safety", "Safety"]]
-    : [["#/", "Home"], [`#/clinic/${S.pid || pid}`, "Clinic", view === "clinic"], ["#/outcomes", "Outcomes", view === "outcomes"], [`#/patient/${pid}`, "Patient app", view === "patient"], ["#/data", "Data sources", view === "data"]];
-  $("#navlinks").innerHTML = links.map(([h, t, cur]) => `<a href="${h}"${cur ? ' aria-current="page"' : ""}>${t}</a>`).join("");
+  if (view) navView = view; view = navView;
+  const app = view !== "home", pid = curPid;
+  $("#letterhead").classList.toggle("mode-app", app);
+  $("#home-btn").hidden = !app;
+  $("#navlinks").innerHTML = app ? "" : [["#how", "How it works"], ["#sources", "Data sources"], ["#evidence", "Evidence"], ["#india", "Built for India"], ["#safety", "Safety"]]
+    .map(([h, t]) => `<a href="${h}">${t}</a>`).join("");
+  const modes = [["clinic", `#/clinic/${pid}`, app ? "Clinic" : "Simulated clinic"], ["patient", `#/patient/${pid}`, "Patient app"]];
+  $("#modes").innerHTML = modes.map(([id, h, t]) => {
+    const on = app ? view === id : id === "clinic";
+    return `<a href="${h}" class="mode${on ? " on" : ""}"${app && view === id ? ' aria-current="page"' : ""}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${NAV_ICON[id]}"/></svg>${t}</a>`;
+  }).join("");
+  $("#applinks").innerHTML = app ? [["#/outcomes", "Outcomes", "outcomes"], ["#/data", "Data sources", "data"]]
+    .map(([h, t, id]) => `<a href="${h}"${view === id ? ' aria-current="page"' : ""}>${t}</a>`).join("") : "";
 }
 window.addEventListener("hashchange", route);
 
@@ -373,7 +395,7 @@ const Clinic = {
       new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     }
     await this.renderRegister();
-    const target = pid || S.pid || "GT-1102";
+    const target = pid || curPid || S.pid || "GT-1102";
     if (target !== S.pid) await this.open(target);
     else { const P = this.P(); if (P) { try { mergeLogs(P, await Data.logs(S.pid)); S.esc = await Data.escalations(S.pid); } catch { /* keep cached */ } } await this.loadNotes(); this.renderTime(); }
   },
@@ -392,14 +414,14 @@ const Clinic = {
     const thr = Thr.get(this.meta), out = this.out, key = out ? Object.keys(out.patients[reg0[0].pid].alerts_by_t).reduce((b, t) => Math.abs(+t - thr) < Math.abs(+b - thr) ? t : b) : null;
     const reg = reg0.map(c => { const o = out && out.patients[c.pid], l = this.loop && this.loop.by_patient[c.pid];
       return { ...c, alerts: o && key ? o.alerts_by_t[key] : c.alerts, low: o ? o.low_flags + o.lows : 0, hypo: o ? o.hypo_med : false, open: l ? l.open : 0 }; });
-    const rows = reg.filter(c => !q || `${c.name} ${c.city} ${c.pid}`.toLowerCase().includes(q));
-    const by = { alerts: (a, b) => b.open - a.open || b.alerts - a.alerts || a.tir - b.tir, tir: (a, b) => a.tir - b.tir, a1c: (a, b) => b.hba1c - a.hba1c, low: (a, b) => b.low - a.low || b.hypo - a.hypo, name: (a, b) => a.name.localeCompare(b.name) }[sort];
+    const rows = reg.filter(c => !q || `${fullName(c)} ${c.city} ${c.pid}`.toLowerCase().includes(q));
+    const by = { alerts: (a, b) => b.open - a.open || b.alerts - a.alerts || a.tir - b.tir, tir: (a, b) => a.tir - b.tir, a1c: (a, b) => b.hba1c - a.hba1c, low: (a, b) => b.low - a.low || b.hypo - a.hypo, name: (a, b) => fullName(a).localeCompare(fullName(b)) }[sort];
     rows.sort(by);
     $("#reg-count").textContent = `${rows.length} of ${reg.length}`;
     $("#rlist").innerHTML = rows.length ? rows.map(c => {
       const cls = c.alerts >= 35 ? "hi" : c.alerts >= 18 ? "mid" : "";
       return `<button class="rrow" role="listitem" data-pid="${c.pid}" aria-current="${c.pid === S.pid}">
-        <span class="nm">${esc(c.name)}</span><span class="count ${cls}" title="Spike warnings this week">${c.alerts} warnings</span>
+        <span class="nm">${esc(fullName(c))}</span><span class="count ${cls}" title="Spike warnings this week">${c.alerts} warnings</span>
         <span class="mt">${c.age}${c.sex} · ${esc(c.city)} · ${c.condition}</span><span class="a1c num">A1c ${c.hba1c.toFixed(1)}%</span>
         ${c.open || (c.hypo && c.low) ? `<span class="rflags">${c.open ? `<span class="rf open">${c.open} open</span>` : ""}${c.hypo && c.low ? `<span class="rf low" title="On a sulfonylurea or insulin, with low-glucose risk this week">low risk</span>` : ""}</span>` : ""}
         <span class="tirbar" title="Time in range ${c.tir}%, above range ${c.tar}%"><i style="width:${c.tir}%;background:var(--ok)"></i><i style="width:${c.tar}%;background:var(--alert)"></i></span>
@@ -408,7 +430,7 @@ const Clinic = {
 
   // ---------------------------------------------------------------- open a case
   async open(pid) {
-    S.pid = pid;
+    S.pid = pid; curPid = pid; renderNav();
     $$(".rrow").forEach(b => b.setAttribute("aria-current", b.dataset.pid === pid));
     $("#case-head").innerHTML = `<div class="loading">Opening the case…</div>`;
     let P;
@@ -432,10 +454,10 @@ const Clinic = {
     return i;
   },
   renderHead(P) {
-    const e = P.ehr;
+    const e = P.ehr; $("#rx-who").textContent = fullName(P); $("#rx-fab span:last-child").textContent = `Try advice for ${P.name}`;
     const rx = [["on_metformin", "Metformin"], ["on_sulfonylurea", "Glimepiride"], ["on_dpp4", "Teneligliptin"], ["on_sglt2", "Dapagliflozin"], ["on_basal_insulin", "Glargine"]].filter(r => e[r[0]]).map(r => r[1]);
     const dx = [P.condition === "T2D" ? `Type 2 diabetes · ${e.diabetes_years} y` : "Prediabetes", e.hypertension && "Hypertension", e.dyslipidemia && "Dyslipidaemia", e.nafld && "Fatty liver"].filter(Boolean);
-    $("#case-head").innerHTML = `<div><div class="pid">${P.pid} · synthetic</div><h2>${esc(P.name)}</h2><div class="who">${P.age} · ${P.sex === "F" ? "Female" : "Male"} · ${esc(P.city)} · ${e.vegetarian ? "Vegetarian" : "Non-vegetarian"} · BMI ${e.bmi}</div></div>
+    $("#case-head").innerHTML = `<div><div class="pid">${P.pid} · synthetic</div><h2>${esc(fullName(P))}</h2><div class="who">${P.age} · ${P.sex === "F" ? "Female" : "Male"} · ${esc(P.city)} · ${e.vegetarian ? "Vegetarian" : "Non-vegetarian"} · BMI ${e.bmi}</div></div>
       <div class="tags">${dx.map(d => `<span class="tag">${d}</span>`).join("")}${rx.map(r => `<span class="tag rx">${r}</span>`).join("") || '<span class="tag">No glucose-lowering medicine</span>'}</div>
       <div class="head-acts"><a class="btn btn-quiet btn-sm" id="open-papp" href="#/patient/${P.pid}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>${esc(P.name)}'s app</a>
         <button class="btn btn-quiet btn-sm" data-src="cgm,steps,hr,hrv,sleep,meals,meds,ehr" data-pid="${P.pid}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/></svg>Data sources</button></div>`;
@@ -762,7 +784,14 @@ const Clinic = {
   },
 
   // ---------------------------------------------------------------- Rx pad
+  openRx() { const d = $("#rxpad"); d.hidden = false; d.classList.remove("min"); $("#rx-fab").hidden = true; $("#rx-fab").setAttribute("aria-expanded", "true"); this.renderRx(); },
+  closeRx() { $("#rxpad").hidden = true; $("#rx-fab").hidden = false; $("#rx-fab").setAttribute("aria-expanded", "false"); },
   setupRx() {
+    $("#rx-fab").addEventListener("click", () => { this.openRx(); setTimeout(() => $("#w-meal").focus({ preventScroll: true }), 50); });
+    $("#rx-close").addEventListener("click", () => { this.closeRx(); $("#rx-fab").focus(); });
+    $("#rx-min").addEventListener("click", e => { e.stopPropagation(); $("#rxpad").classList.toggle("min"); });
+    $("#rxpad .rxd-h").addEventListener("click", e => { if (e.target === e.currentTarget || e.target.id === "h-rx" || e.target.closest("#h-rx")) { if ($("#rxpad").classList.contains("min")) $("#rxpad").classList.remove("min"); } });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#rxpad").hidden && !views.clinic.hidden && !Tour.steps) this.closeRx(); });
     const cat = this.meta.meal_catalog;
     $("#w-meal").innerHTML = `<option value="-1">No new meal</option>` + cat.map((m, i) => `<option value="${i}">${esc(m.meal)} · ${m.carbs} g · GI ${m.gi}</option>`).join("");
     $("#w-walk").innerHTML = [0, 10, 20, 30].map(w => `<button data-w="${w}" aria-pressed="false">${w ? w + " min" : "None"}</button>`).join("");
@@ -851,7 +880,7 @@ const Clinic = {
     const body = { k: P.pred.k[i], meal_name: meal ? meal.meal : null, carbs_g: meal ? meal.carbs : 0, gi: meal ? meal.gi : 65, eat_in_min: wi.when, walk_min: wi.walk,
       sleep_hours: wi.sleepTouched ? wi.sleep : null, metformin_taken: P.ehr.on_metformin && wi.metTouched ? !!wi.met : null, summary: this.adviceText(P), baseline_peak: Math.round(peakOf(r.cmp)) };
     const btn = $("#save-note"); btn.disabled = true; btn.textContent = "Saving…";
-    try { await Data.addNote(S.pid, body, { peak: Math.round(peakOf(r.scen)), above: above(r.scen) }); await this.loadNotes(); $("#notes-fold").open = true; toast(`Saved to ${P.name}'s case notes and sent to his app${Data.live ? "" : " (kept in this browser)"}`); }
+    try { await Data.addNote(S.pid, body, { peak: Math.round(peakOf(r.scen)), above: above(r.scen) }); await this.loadNotes(); $("#notes-fold").open = true; toast(`Saved and sent to ${P.name}'s app${Data.live ? "" : " (kept in this browser)"}`, { label: `Open ${P.name}'s advice`, href: `#/patient/${P.pid}?tab=advice` }); }
     catch (e) { toast(`Couldn't save the note. ${e.message || "Try again."}`); }
     finally { btn.disabled = false; btn.textContent = "Save and send to patient"; }
   },
@@ -906,8 +935,14 @@ const Tour = {
   steps: null, i: 0,
   async start(steps) {
     Welcome.hide(); Clinic.togglePlay(false); Glossary.close();
-    if (!location.hash.startsWith("#/clinic")) { location.hash = "#/clinic"; }
-    for (let t = 0; t < 100 && !(Clinic.P() && !views.clinic.hidden); t++) await new Promise(r => setTimeout(r, 100));
+    if (steps.view === "patient") {
+      if (!location.hash.startsWith("#/patient")) location.hash = `#/patient/${curPid}`;
+      for (let t = 0; t < 100 && !(Patient.P && !views.patient.hidden); t++) await new Promise(r => setTimeout(r, 100));
+    } else {
+      Patient.closeSheet && Patient.sheet && Patient.closeSheet(true);
+      if (!location.hash.startsWith("#/clinic")) { location.hash = "#/clinic"; }
+      for (let t = 0; t < 100 && !(Clinic.P() && !views.clinic.hidden); t++) await new Promise(r => setTimeout(r, 100));
+    }
     this.steps = steps; this.i = 0;
     $("#tour-root").innerHTML = `<div class="tour-veil" id="tour-veil"></div><div class="tour-spot" id="tour-spot"></div><div class="tour-card" id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-h"></div>`;
     this.onKey = e => { if (e.key === "Escape") this.end(); else if (e.key === "ArrowRight") this.go(1); else if (e.key === "ArrowLeft") this.go(-1); };
@@ -959,37 +994,62 @@ const setCase = async (pid, day, slot, wi) => {
   if (S.pid !== pid) { history.replaceState(null, "", `#/clinic/${pid}`); await Clinic.open(pid); }
   S.day = day; S.slot = slot; if (wi) Object.assign(S.wi, wi); Clinic.renderTime();
 };
+const setPCase = async (pid, day, slot, tab) => {
+  if (Patient.sheet) Patient.closeSheet(true);
+  if (Patient.pid !== pid) { history.replaceState(null, "", `#/patient/${pid}`); await Patient.init(pid); }
+  S.day = day; S.slot = slot; Patient.tab = tab || "today"; Patient.render(); $("#pscreen").scrollTop = 0;
+};
 const catIdx = n => Clinic.meta.meal_catalog.findIndex(m => m.meal === n);
 const runNow = () => ({ pk: Math.round(peakOf(Clinic.lastRun.scen)), ab: above(Clinic.lastRun.scen) });
 
 const TOUR = Object.assign([
   { sel: "#register", title: "Start with the register", body: "Your patients, ranked by how many times Chaya warned about a spike this week. The bar under each name shows <b>time in range</b> in green and <b>time above 180</b> in red. Click a name to open the case.",
-    before: () => setCase("GT-1102", 6, 51, { meal: -1, walk: 0, metTouched: false, sleepTouched: false }) },
+    before: () => { Clinic.closeRx(); return setCase("GT-1102", 6, 51, { meal: -1, walk: 0, metTouched: false, sleepTouched: false }); } },
   { sel: "#clockbar", title: "Move the clock", body: "This is a replay of one synthetic week. Pick a day, drag <b>Now</b>, or press Replay. Every panel shows only what Chaya knew at that moment.", block: "start" },
   { sel: "#case-head", title: "The case sheet", body: "Who the patient is, their diagnoses and medicines, then this week's numbers: time in range, GMI against the lab HbA1c, variability and the count of spike warnings." },
   { sel: "#trace", title: "Read the day trace", body: "Black ink is glucose so far. <b>Violet dashes are Chaya's forecast</b> for the next two hours. Grey is what actually happened next. Below: meals, steps and sleep." },
   { sel: "#risk", title: "The stamp on the slip", body: () => { const P = Clinic.P(), s = Clinic.status(P, Clinic.idx(P)); return `Right now Sanjay's slip reads <b>${s.main}</b> (${s.sub}). Stamps go from In range to Watch to Spike likely, so the urgent case is visible at a glance.`; } },
   { sel: "#why-wrap", title: "Every warning has reasons", body: "The three biggest drivers behind the score, in plain words: a meal just logged, the twin's projected peak, low activity, short sleep, a missed dose." },
   { sel: "#twin", title: "The patient's twin", body: "Chaya tuned these numbers to Sanjay on his first seven days. The violet mark is the twin; the grey tick is what the health record alone suggested. The gap is why a personal twin matters." },
-  { sel: "#rxpad", title: "Try advice before you give it", body: "Pick a meal, a walk, last night's sleep or a missed metformin dose. The twin redraws the next four hours for this body. Save the advice to the case notes.", block: "start" },
+  { sel: "#rxpad", title: "Try advice before you give it", body: "The ℞ button at the bottom right opens the Rx pad, like composing an email. Pick a meal, a walk, last night's sleep or a missed metformin dose; the twin redraws the next four hours for this body. Save and send it to the patient's app.", before: () => Clinic.openRx() },
   { sel: "#help-menu", title: "Help is always here", body: "Reopen this tour, walk through Sanjay's case, see <b>where the data comes from</b>, or open <b>What's what</b> for every term. The <b>i</b> buttons explain a panel; <b>Sources</b> buttons show where its numbers come from." },
 ], { label: "Product tour", doneLabel: "Start exploring" });
 
+const PTOUR = Object.assign([
+  { sel: "#phone", title: "The patient's side of the same twin", body: () => `This is what ${esc(Patient.P.name)} sees on his phone. Same data, same forecast as the clinic, written for him instead of for a doctor. Nothing here asks him to read a chart.`,
+    before: () => setPCase("GT-1102", 6, 51, "today") },
+  { sel: ".pc-now", title: "His reading, with the carbon copy", body: "The big number is his glucose now and which way it is heading. The violet line under it is Chaya's two-hour forecast, the same violet the clinic uses." },
+  { sel: ".pc-alert", title: "A warning he can act on", body: "When a spike is likely, the app says so in one plain sentence with the expected peak and time. For a low, it moves to the very top and lists what to do: take sugar now, recheck in 15 minutes, call if it does not lift." },
+  { sel: ".pm-list", title: "Dose reminders", body: "Chaya learns his usual dose times from the week. Each dose shows as taken, due, missed or later. He can tap Taken or Snooze, and the clinic sees it." },
+  { sel: "#ptabs", title: "Log a meal in two taps", body: "The raised button logs a meal or a dose: pick the dish from Indian thalis and snacks, choose when, add a photo if he likes. The meal lands on the clinic trace, marked as logged in the app.", block: "end" },
+  { sel: ".pc-body", title: "Advice from his doctor", body: "Everything the doctor saves from the Rx pad arrives here, with the before-and-after peak the twin worked out. He marks it as read, and the clinic sees when he did.",
+    before: () => Patient.go("advice") },
+  { sel: ".pc-body", title: "His week, in plain words", body: "This week's time in range against his 70% goal, day by day, with how many warnings he had and his meals, doses, sleep and steps. Plain words, so he can see progress for himself.",
+    before: () => Patient.go("week") },
+  { sel: ".pc-body", title: "Where each number comes from", body: "My data lists every device and record feeding the twin: the CGM, his phone's steps, sleep, meals and the clinic's records. He can see what is shared.",
+    before: () => Patient.go("data") },
+  { sel: ".pc-lang", title: "English or Hindi", body: "One tap switches the whole app to Hindi. Medicine names stay in English, as they are on the strip.",
+    before: () => Patient.go("today") },
+  { sel: ".pc-alert", title: "What a low looks like", body: () => `Here is ${esc(Patient.P.name)}, on a sulfonylurea and basal insulin. Chaya expects her to dip below 70, so the low card leads the screen, ahead of everything else.`,
+    before: () => setPCase("GT-1018", 0, 37, "today") },
+  { sel: ".pside-ctl", title: "Replay any moment", body: "Pick a patient, a day and a time. The phone shows exactly what it would have shown then. Back to the clinic is one tap away, in the header or below.", block: "center" },
+], { label: "Patient app tour", view: "patient", doneLabel: "Done" });
+
 const CASE = Object.assign([
   { sel: "#case-head", title: "Sunday, 12:15. Sanjay is about to eat lunch.", body: "He is 53, has had Type 2 diabetes for about four years and takes metformin and glimepiride. His glucose is calm and in range.",
-    before: () => setCase("GT-1102", 6, 49, { meal: -1, walk: 0, metTouched: false, sleepTouched: false }) },
+    before: () => { Clinic.closeRx(); return setCase("GT-1102", 6, 49, { meal: -1, walk: 0, metTouched: false, sleepTouched: false }); } },
   { sel: "#twin", title: "His twin has learned his body", body: "Over his first seven days Chaya found his insulin sensitivity is low for this group, lower than his health record suggested. That is why lunch hits him hard." },
   { sel: "#rx-result", title: "If he eats chicken biryani…", body: () => { const r = runNow(); return `…his twin projects a peak of <b>${r.pk} mg/dL</b>, with <b>${r.ab} minutes</b> above 180.`; },
-    before: () => { S.wi.meal = catIdx("Chicken biryani"); S.wi.walk = 0; S.wi.when = 15; Clinic.renderRx(); } },
+    before: () => { Clinic.openRx(); S.wi.meal = catIdx("Chicken biryani"); S.wi.walk = 0; S.wi.when = 15; Clinic.renderRx(); } },
   { sel: "#rx-result", title: "Swap the rice for ragi mudde", body: () => { const r = runNow(); return `Same lunch slot, lower-GI millet. The peak drops to <b>${r.pk} mg/dL</b>, ${r.ab} minutes above 180.`; },
-    before: () => { S.wi.meal = catIdx("Millet (ragi) mudde + saaru"); S.wi.walk = 0; Clinic.renderRx(); } },
+    before: () => { Clinic.openRx(); S.wi.meal = catIdx("Millet (ragi) mudde + saaru"); S.wi.walk = 0; Clinic.renderRx(); } },
   { sel: "#rx-result", title: "Add a 20-minute walk after lunch", body: () => { const r = runNow(); return `Now the peak is <b>${r.pk} mg/dL</b> and he spends <b>${r.ab} minutes</b> above 180. That is advice he can follow, with a number attached.`; },
-    before: () => { S.wi.walk = 20; Clinic.renderRx(); } },
+    before: () => { Clinic.openRx(); S.wi.walk = 20; Clinic.renderRx(); } },
   { sel: "#risk", title: "What actually happened at 12:45", body: () => { const P = Clinic.P(), s = Clinic.status(P, Clinic.idx(P)); let m = null; for (let k = Clinic.kNow(); k < Clinic.kNow() + 36; k++) if (P.cgm[k] != null && P.cgm[k] > 180) { m = (k - Clinic.kNow()) * 5; break; }
       return `He logged an 81 g lunch. Chaya stamped <b>${s.main}</b> (${s.sub}) and listed why${m ? `, <b>${m} minutes</b> before his glucose actually crossed 180` : ""}. This is the warning a care coordinator would see, with time to call.`; },
-    before: () => setCase("GT-1102", 6, 51, { meal: -1, walk: 20 }) },
+    before: () => { Clinic.closeRx(); return setCase("GT-1102", 6, 51, { meal: -1, walk: 20 }); } },
   { sel: "#trace", title: "The forecast against reality", body: "Violet dashes are what Chaya expected; the grey line is what happened. Press Replay any time to watch the afternoon unfold." },
-  { sel: "#save-note", title: "Put the advice on file", body: () => `Save it to his case notes. ${Data.live ? "It is stored in the database" : "In this offline demo it is kept in your browser"} with the twin's projection, so the next consult starts from it.` },
+  { sel: "#save-note", before: () => Clinic.openRx(), title: "Put the advice on file", body: () => `Save it to his case notes. ${Data.live ? "It is stored in the database" : "In this offline demo it is kept in your browser"} with the twin's projection, so the next consult starts from it.` },
   { sel: "#open-papp", title: "…and it reaches Sanjay's phone", body: "Saved advice appears in his patient app, in the doctor's handwriting, beside his own glucose, steps and sleep. Open the patient view to see it.", block: "center" },
 ], { label: "Case walkthrough", doneLabel: "Done" });
 
@@ -1020,7 +1080,7 @@ function setupHelp() {
   pop.addEventListener("keydown", e => { if (e.key === "Escape") { close(); btn.focus(); } });
   pop.addEventListener("click", e => {
     const b = e.target.closest("[data-help]"); if (!b) return; close();
-    ({ tour: () => Tour.start(TOUR), case: () => Tour.start(CASE), glossary: () => Glossary.open(), sources: () => Sources.open(views.clinic.hidden ? (views.patient.hidden ? null : Patient.pid) : S.pid) })[b.dataset.help]();
+    ({ tour: () => Tour.start(TOUR), case: () => Tour.start(CASE), ptour: () => Tour.start(PTOUR), glossary: () => Glossary.open(), sources: () => Sources.open(views.clinic.hidden ? (views.patient.hidden ? null : Patient.pid) : S.pid) })[b.dataset.help]();
   });
 }
 
@@ -1260,8 +1320,8 @@ const svgI = (d, s = 20, w = 1.9) => `<svg width="${s}" height="${s}" viewBox="0
 const Patient = {
   pid: null, tab: "today", ready: false, lang: "en", sheet: null,
   t(key, ...a) { const v = PT[this.lang][key]; return typeof v === "function" ? v(...a) : v; },
-  async init(pid) {
-    pid = pid || this.pid || S.pid || "GT-1102";
+  async init(pid, params) {
+    pid = pid || curPid || this.pid || "GT-1102"; curPid = pid; renderNav();
     if (!this.ready) {
       this.ready = true; this.meta = await Data.getMeta(); this.lang = store.get("plang", "en");
       $("#ps-days").innerHTML = DAYS.map((d, i) => `<button data-d="${i}" aria-pressed="false">${d} ${14 + i}</button>`).join("");
@@ -1275,15 +1335,16 @@ const Patient = {
       document.addEventListener("keydown", e => { if (e.key === "Escape" && this.sheet && !views.patient.hidden) this.closeSheet(); });
     }
     const reg = await Data.getRegister();
-    $("#ps-pick").innerHTML = [...reg].sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.pid}"${c.pid === pid ? " selected" : ""}>${esc(c.name)} · ${c.pid}</option>`).join("");
+    $("#ps-pick").innerHTML = [...reg].sort((a, b) => fullName(a).localeCompare(fullName(b))).map(c => `<option value="${c.pid}"${c.pid === pid ? " selected" : ""}>${esc(fullName(c))} · ${c.pid}</option>`).join("");
     if (pid !== this.pid) { this.pid = pid; this.tab = "today"; this.closeSheet(true); }
+    const wantTab = params && params.get("tab"); if (wantTab && ["today", "advice", "week", "data"].includes(wantTab)) this.tab = wantTab;
     $("#pscreen").innerHTML = `<div class="loading">…</div>`;
     try { this.P = await Data.getCase(pid); } catch { $("#pscreen").innerHTML = `<div class="loading">We couldn't open ${esc(pid)}. Pick a patient above.</div>`; return; }
     try { mergeLogs(this.P, await Data.logs(pid)); } catch { mergeLogs(this.P, []); }
     try { this.notes = await Data.notes(pid); } catch { this.notes = []; }
-    $("#ps-name").textContent = this.P.name; $$(".ps-his").forEach(e => { e.textContent = this.P.sex === "F" ? "her" : "his"; });
+    $("#ps-name").textContent = fullName(this.P); $$(".ps-his").forEach(e => { e.textContent = this.P.sex === "F" ? "her" : "his"; });
     $("#ps-back").href = `#/clinic/${pid}`;
-    renderNav("patient");
+    const pt = $("#ps-tour"); if (pt && !pt.dataset.on) { pt.dataset.on = 1; pt.addEventListener("click", () => Tour.start(PTOUR)); }
     this.render();
   },
   go(tab) { this.tab = tab; this.render(); $("#pscreen").scrollTop = 0; if (matchMedia("(max-width: 720px)").matches) window.scrollTo(0, 0); },
@@ -1563,7 +1624,7 @@ const Outcomes = {
     const strip = days.map((dd, j) => dd.v.map((v, q) => `<circle cx="${(x(j) + ((q * 37) % 23 - 11)).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.6" fill="${v >= 70 ? "var(--ok)" : "var(--alert)"}" opacity=".55"/>`).join("") +
       `<line x1="${x(j) - 16}" x2="${x(j) + 16}" y1="${y(med(dd.v))}" y2="${y(med(dd.v))}" stroke="var(--ink)" stroke-width="2.5"/><text x="${x(j)}" y="${H - 8}" text-anchor="middle">${dd.d}</text>`).join("");
     const sorted = [...rows].sort((a, b) => a.tir - b.tir), bw = (W - M.l - M.r) / n;
-    const bars = sorted.map((r, j) => `<rect x="${(M.l + j * bw + 1).toFixed(1)}" y="${y(r.tir).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${(y(0) - y(r.tir)).toFixed(1)}" fill="${r.tir >= 70 ? "var(--ok)" : "var(--alert)"}" opacity=".8"><title>${r.name} · ${r.tir}%</title></rect>`).join("");
+    const bars = sorted.map((r, j) => `<rect x="${(M.l + j * bw + 1).toFixed(1)}" y="${y(r.tir).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${(y(0) - y(r.tir)).toFixed(1)}" fill="${r.tir >= 70 ? "var(--ok)" : "var(--alert)"}" opacity=".8"><title>${esc(fullName(r))} · ${r.tir}%</title></rect>`).join("");
     const grid = [0, 50, 70, 100].map(v => `<line x1="${M.l}" x2="${W - M.r}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 70 ? "var(--ink-3)" : "var(--edge)"}" stroke-dasharray="${v === 70 ? "4 3" : ""}"/><text x="${M.l - 6}" y="${y(v) + 3}" text-anchor="end">${v}%</text>`).join("");
     const tbl = [...rows].sort((a, b) => b.open - a.open || (b.hypo && b.lows + b.lowf) - (a.hypo && a.lows + a.lowf) || a.tir - b.tir);
     $("#outc-body").innerHTML = `
@@ -1579,7 +1640,7 @@ const Outcomes = {
       <div class="ogrid">
         <section class="oblock"><h2>Low-glucose safety</h2>
           <p class="olead"><b class="num">${hypo.length}</b> patients take a sulfonylurea or insulin. The panel had <b class="num">${lowsAll}</b> drops below 70 this week. The twin warned <b class="num">${out.low.caught} of ${out.low.onsets}</b> ahead of time, a median <b class="num">${out.low.median_lead_min} min</b> early, at about ${Math.round(out.low.flags_per_patient_day * 7 * 10) / 10} low warnings per patient a week.</p>
-          <ul class="olist">${hypo.sort((a, b) => (b.lows + b.lowf) - (a.lows + a.lowf)).slice(0, 6).map(r => `<li><a href="#/clinic/${r.pid}">${esc(r.name)}</a><span class="num">${r.tbr}% below 70</span><span>${r.lows} lows · ${r.lowf} warned</span></li>`).join("")}</ul>
+          <ul class="olist">${hypo.sort((a, b) => (b.lows + b.lowf) - (a.lows + a.lowf)).slice(0, 6).map(r => `<li><a href="#/clinic/${r.pid}">${esc(fullName(r))}</a><span class="num">${r.tbr}% below 70</span><span>${r.lows} lows · ${r.lowf} warned</span></li>`).join("")}</ul>
           <p class="ofoot">Small sample: 10 low episodes in 45 synthetic patients. Validation on real CGM data comes first.</p></section>
         <section class="oblock"><h2>Alert load</h2>
           <p class="olead">At the current threshold Chaya sends <b class="num">${cur.alerts_per_patient_day.toFixed(1)}</b> spike warnings per patient a day and warns about <b class="num">${Math.round(cur.onsets_warned * 100)}%</b> of spikes within two hours.</p>
@@ -1588,7 +1649,7 @@ const Outcomes = {
       </div>
       <section class="oblock"><h2>Patients</h2><p class="osub">Open escalations first, then low-glucose risk, then lowest time in range. Select a name to open the case.</p>
         <div class="table-scroll"><table class="otable"><thead><tr><th>Patient</th><th>In range</th><th>Below 70</th><th>Spike warnings</th><th>Lows · low warnings</th><th>Escalations</th><th>Advice sent · seen</th></tr></thead>
-        <tbody>${tbl.map(r => `<tr><td><a href="#/clinic/${r.pid}">${esc(r.name)}</a><span class="ot-m">${r.pid}${r.hypo ? " · SU/insulin" : ""}</span></td><td class="num ${r.tir < 70 ? "bad" : ""}">${r.tir}%</td><td class="num">${r.tbr}%</td><td class="num">${r.warn}</td><td class="num">${r.lows} · ${r.lowf}</td><td class="num">${r.open ? `<span class="rf open">${r.open} open</span>` : r.esc || "–"}</td><td class="num">${r.notes ? `${r.notes} · ${r.acked}` : "–"}</td></tr>`).join("")}</tbody></table></div></section>`;
+        <tbody>${tbl.map(r => `<tr><td><a href="#/clinic/${r.pid}">${esc(fullName(r))}</a><span class="ot-m">${r.pid}${r.hypo ? " · SU/insulin" : ""}</span></td><td class="num ${r.tir < 70 ? "bad" : ""}">${r.tir}%</td><td class="num">${r.tbr}%</td><td class="num">${r.warn}</td><td class="num">${r.lows} · ${r.lowf}</td><td class="num">${r.open ? `<span class="rf open">${r.open} open</span>` : r.esc || "–"}</td><td class="num">${r.notes ? `${r.notes} · ${r.acked}` : "–"}</td></tr>`).join("")}</tbody></table></div></section>`;
   },
 };
 // ================================================================== boot

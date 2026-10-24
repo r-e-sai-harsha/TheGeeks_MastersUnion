@@ -40,6 +40,11 @@ Type: **Hind** (self-hosted, Devanagari only) backs Archivo for Hindi text. **Ar
 - **Escalation card** (`.esc`): owner, contact-by time and status in the Next 2 hours panel; yellow while open, vermilion tint when overdue, green when resolved.
 - **Threshold popover** (`.thr-pop`): measured trade-off curve with presets.
 
+- **Header modes**: home shows section links and a pill track (navy #090e2c) holding *Simulated clinic* and *Patient app*; the active one is a violet gradient pill. In-product (`.mode-app`) adds a home icon, the same track as a Clinic / Patient app switcher, and *Outcomes* · *Data sources* at the right.
+- **Rx dock**: `.rx-fab` (letterhead navy, violet ℞ chip) fixed bottom right; `.rxdock` opens above it with a navy title bar (minimise, close) and a scrolling body; a full-width bottom sheet under 640px.
+- **Action toast**: `toast(msg, {label, href})` adds a violet-soft link button and stays for 9 s.
+- **Names**: every synthetic patient has a surname (`scripts/surnames.json`); full names in lists, headings and pickers, first names in greetings.
+
 ## Rules
 
 - Violet means forecast and Chaya's own marks; vermilion means a spike warning; deep blue means low glucose; never swap them.
